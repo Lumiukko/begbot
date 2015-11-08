@@ -9,12 +9,12 @@ import random
 
 
 # Global Variables
-LAST_UPDATE_ID = None
-SESSION_ID = None
+LAST_UPDATE_ID = 0
+SESSION_ID = -1
 KNOWN_USERS = {}
-DB_FILE = None
-ADMIN_ID = None
-BEG_ID = None
+DB_FILE = ""
+ADMIN_ID = 1
+BEG_ID = -1
 TOKEN = ""
 TS3_USR = ""
 TS3_PWD = ""
@@ -28,6 +28,9 @@ emoji_bang = b"\xf0\x9f\x92\xa2".decode("utf-8")
 emoji_party_cone = b"\xf0\x9f\x8e\x89".decode("utf-8")
 emoji_party_ball = b"\xf0\x9f\x8e\x8a".decode("utf-8")
 emoji_sparkle = b"\xe2\x9c\xa8".decode("utf-8")
+emoji_blue_ball = b"\xf0\x9f\x94\xb5".decode("utf-8")
+emoji_red_ball = b"\xf0\x9f\x94\xb4".decode("utf-8")
+emoji_speech_bubble = b"\xf0\x9f\x92\xac".decode("utf-8")
 
 
 # Global variables for messages
@@ -84,7 +87,7 @@ def loop(bot):
         if message_text == b"/ts3":
             if is_beg(sender):
                 get_ts3_status()
-                print("TS3 Status Request received.")
+                #print("TS3 Status Request received.")
                 ts3status = get_ts3_status()
                 bot.sendMessage(chat_id=u.message.chat_id, text=ts3status)
             else:
@@ -92,14 +95,14 @@ def loop(bot):
 
 
         # Admin only commands
-        if message_text == (b"/session"):
+        if message_text == b"/session":
             if is_admin(sender):
                 (s_id, s_start, s_end, s_duration) = get_session(SESSION_ID)
                 bot.sendMessage(chat_id=u.message.chat_id, text="Session: id={}, start={}, lastka={}, duration={}s".format(s_id, s_start, s_end, s_duration))
             else:
                 bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
 
-        if message_text == (b"/listnonbeg"):
+        if message_text == b"/listnonbeg":
             if is_admin(sender):
                 nonbeg = "\n".join([str(u) for u in get_non_beg_users()])
                 bot.sendMessage(chat_id=u.message.chat_id, text="Non-BEG Users:\n{}".format(nonbeg))
@@ -278,7 +281,7 @@ def get_ts3_status():
                 clients.append( (client["client_nickname"], client["cid"]) )
 
         if len(clients) == 0:
-            return "TS3 {} There's nobody online {}".format(emoji_blue_rhombus, emoji_sad)
+            return "{} TeamSpeak 3:  {} There's nobody online {}".format(emoji_speech_bubble, emoji_red_ball, emoji_sad)
 
         resp = ts3con.channellist()
         for channel in resp.parsed:
@@ -290,9 +293,9 @@ def get_ts3_status():
 
         entries = []
         for c in channels:
-            entries.append("{}: {}".format(channels[c]["name"], ", ".join(channels[c]["clients"])))
+            entries.append("{}{}:  {} {}".format(emoji_blue_rhombus, channels[c]["name"], emoji_blue_ball, (" " + emoji_blue_ball + " ").join(channels[c]["clients"])))
 
-        return "TS3 {}{}".format(emoji_blue_rhombus, emoji_blue_rhombus.join(entries))
+        return "{} TeamSpeak 3:\n{}".format(emoji_speech_bubble, "\n".join(entries))
 
     except ts3.query.TS3QueryError as err:
         print("TS3 query failed:", err.resp.error["msg"])
