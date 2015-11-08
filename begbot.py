@@ -5,6 +5,7 @@ import datetime
 import os
 import sqlite3
 import json
+import random
 
 
 # Global Variables
@@ -127,6 +128,20 @@ def loop(bot):
 
 
 def match_text(text):
+    # That's what she said matching... simplex, change later into a more sophisticated matching...
+    twss = b"\xef\xbb\xbf \xcd\xa1\xc2\xb0 \xcd\x9c\xca\x96 \xcd\xa1\xc2\xb0".decode("utf-8")
+    twss = "That's what she said ({})".format(twss)
+    wordbag = "zu aber riesig passt gross groß wow lang ui eng klein nie"
+    wordbag = wordbag.split()
+    textbag = text.decode("utf-8").split()
+    hits = 0
+    for w in wordbag:
+        if w in textbag:
+            hits += 1
+    threshold = random.randint(3, 3+int(len(textbag)/2))
+    if hits >= threshold:
+        return twss
+
     return None
 
 
