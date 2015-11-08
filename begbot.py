@@ -31,6 +31,9 @@ emoji_sparkle = b"\xe2\x9c\xa8".decode("utf-8")
 emoji_blue_ball = b"\xf0\x9f\x94\xb5".decode("utf-8")
 emoji_red_ball = b"\xf0\x9f\x94\xb4".decode("utf-8")
 emoji_speech_bubble = b"\xf0\x9f\x92\xac".decode("utf-8")
+emoji_thick_dash = b"\xe2\x9e\x96".decode("utf-8")
+emoji_crossing_t = b"\xe2\x94\x9c".decode("utf-8")
+emoji_crossing_l = b"\xe2\x94\x94".decode("utf-8")
 
 
 # Global variables for messages
@@ -270,6 +273,11 @@ def get_ts3_status():
     channels = {}
     clients = []
 
+
+
+
+    'Awesome Booth 3\n  \xf0\x9f\x94\xb5 makko\n  \xf0\x9f\x94\xb5 ZIP-Drive'
+
     try:
         ts3con.login(client_login_name=TS3_USR, client_login_password=TS3_PWD)
         ts3con.use(sid=1)
@@ -281,7 +289,7 @@ def get_ts3_status():
                 clients.append( (client["client_nickname"], client["cid"]) )
 
         if len(clients) == 0:
-            return "{} TeamSpeak 3:  {} There's nobody online {}".format(emoji_speech_bubble, emoji_red_ball, emoji_sad)
+            return "{}{} TeamSpeak 3 {}{}\n There's nobody online {}".format(emoji_thick_dash, emoji_thick_dash, emoji_thick_dash, emoji_thick_dash, emoji_sad)
 
         resp = ts3con.channellist()
         for channel in resp.parsed:
@@ -293,9 +301,16 @@ def get_ts3_status():
 
         entries = []
         for c in channels:
-            entries.append("{}{}:  {} {}".format(emoji_blue_rhombus, channels[c]["name"], emoji_blue_ball, (" " + emoji_blue_ball + " ").join(channels[c]["clients"])))
+            clientlines = []
+            for client in range(0, len(channels[c]["clients"])):
+                if client == len(channels[c]["clients"])-1:
+                    clientlines.append(" {} {} {}".format(emoji_crossing_l, emoji_blue_ball, channels[c]["clients"][client]))
+                else:
+                    clientlines.append(" {} {} {}".format(emoji_crossing_t, emoji_blue_ball, channels[c]["clients"][client]))
 
-        return "{} TeamSpeak 3:\n{}".format(emoji_speech_bubble, "\n".join(entries))
+            entries.append("{} {}\n{}".format(emoji_speech_bubble, channels[c]["name"], "\n".join(clientlines)))
+
+        return "{}{} TeamSpeak 3 {}{}\n{}".format(emoji_thick_dash, emoji_thick_dash, emoji_thick_dash, emoji_thick_dash, "\n".join(entries))
 
     except ts3.query.TS3QueryError as err:
         print("TS3 query failed:", err.resp.error["msg"])
