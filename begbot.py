@@ -273,11 +273,6 @@ def get_ts3_status():
     channels = {}
     clients = []
 
-
-
-
-    'Awesome Booth 3\n  \xf0\x9f\x94\xb5 makko\n  \xf0\x9f\x94\xb5 ZIP-Drive'
-
     try:
         ts3con.login(client_login_name=TS3_USR, client_login_password=TS3_PWD)
         ts3con.use(sid=1)
