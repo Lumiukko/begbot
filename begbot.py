@@ -48,6 +48,9 @@ def main():
 
     load_config()
 
+    #print("Known Users:")
+    #print(KNOWN_USERS)
+
     bot = telegram.Bot(token=TOKEN)
     bot_info = bot.getMe()
     started = datetime.datetime.now()
@@ -75,6 +78,7 @@ def loop(bot):
 
         if sender not in KNOWN_USERS:
             add_user(u.message.from_user)
+            #print("New User added: {}".format(u.message.from_user))
 
         #print("Received Message from {}: {}".format(sender, message_text))
 
@@ -216,12 +220,14 @@ def get_session(session_id):
 
 
 def add_user(user):
+    global KNOWN_USERS
     con = sqlite3.connect(DB_FILE)
     c = con.cursor()
     c.execute("insert into user (username, firstname, lastname, telegram_id, added, beg, admin) values (?, ?, ?, ?, datetime('now'), 0, 0)", (user.username, user.first_name, user.last_name, user.id))
     con.commit()
     c.close()
     con.close()
+    KNOWN_USERS[user.id]
 
 def get_user_by_id(id):
     con = sqlite3.connect(DB_FILE)
