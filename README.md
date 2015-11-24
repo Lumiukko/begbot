@@ -10,6 +10,11 @@ For an introduction for bot creation and usage see: https://core.telegram.org/bo
 * `python-telegram-bot` - https://github.com/leandrotoledo/python-telegram-bot/
 * `py-ts3` - https://github.com/benediktschmitt/py-ts3
 
+## Features
+
+* On the command `/ts3` the bot will answer with an overview of people on the linked Teamspeak 3 server.
+* If someone links a GIF from Imgur, which does not have the .gifv ending (i.e. WEBM converted GIF for saving bandwidth), the bot will post the corresponding GIFV link and mention how large the GIF file would have been to download in megabytes.
+
 ## Configuration
 
 The configuration settings are read in from a file named `config.json` which has to be in the same folder as the program.
