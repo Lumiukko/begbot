@@ -1,5 +1,6 @@
+# Imports
 import telegram
-import ts3
+import ts3.query
 import time
 import datetime
 import os
@@ -38,21 +39,18 @@ emoji_crossing_l = b"\xe2\x94\x94".decode("utf-8")
 emoji_warning = b"\xe2\x9a\xa0\xef\xb8\x8f".decode("utf-8")
 emoji_earth_africaeurope = b"\xf0\x9f\x8c\x8d".decode("utf-8")
 
-
 # Global variables for messages
 msg_only_for_admins = "{} Sorry, only for bot administrators.".format(emoji_bang)
 
 
-
-
 def main():
+    """
+        Bot startup routine, loads the configuration, and enters the main loop.
+    """
     global LAST_UPDATE_ID
     global KNOWN_USERS
 
     load_config()
-
-    #print("Known Users:")
-    #print(KNOWN_USERS)
 
     bot = telegram.Bot(token=TOKEN)
     bot_info = bot.getMe()
@@ -67,14 +65,18 @@ def main():
 
     print("SessionID: {}".format(SESSION_ID))
 
-    while(True):
-        loop(bot) # this includes a few seconds timeout
+    while True:
+        loop(bot)  # this includes a few seconds timeout
         send_keep_alive(SESSION_ID)
 
 
 def loop(bot):
-    global LAST_UPDATE_ID
+    """
+        Main loop of the bot, collects updates from the Telegram API and performs actions on them.
 
+        @param bot The telegram bot instance created by the telegram module.
+    """
+    global LAST_UPDATE_ID
 
     try:
         for u in bot.getUpdates(offset=LAST_UPDATE_ID, timeout=6):
@@ -83,39 +85,36 @@ def loop(bot):
 
             if sender not in KNOWN_USERS:
                 add_user(u.message.from_user)
-                #print("New User added: {}".format(u.message.from_user))
 
-            #print("Received Message from {}: {}".format(sender, message_text))
+            # print("Received Message from {}: {}".format(sender, message_text))
 
             with open("mlog", "a", encoding="utf-8") as f:
                 f.write(message_text.decode("utf-8"))
                 f.write("\n")
             f.close()
 
-
             # Public string matching
             response = match_text(message_text)
-            if response != None:
+            if response is not None:
                 bot.sendMessage(chat_id=u.message.chat_id, text=response)
-
 
             # BEG only commands
             # Maybe check if u.message.chat.type == "private" or "group", if necessary.
             if message_text == b"/ts3":
                 if is_beg(sender):
                     get_ts3_status()
-                    #print("TS3 Status Request received.")
                     ts3status = get_ts3_status()
                     bot.sendMessage(chat_id=u.message.chat_id, text=ts3status)
                 else:
-                    bot.sendMessage(chat_id=u.message.chat_id, text="{} Sorry, only for Bouncing Egg members.".format(emoji_bang))
-
+                    bot.sendMessage(chat_id=u.message.chat_id, text="{} Sorry, only for Bouncing Egg members."
+                                    .format(emoji_bang))
 
             # Admin only commands
             if message_text == b"/session":
                 if is_admin(sender):
                     (s_id, s_start, s_end, s_duration) = get_session(SESSION_ID)
-                    bot.sendMessage(chat_id=u.message.chat_id, text="Session: id={}, start={}, lastka={}, duration={}s".format(s_id, s_start, s_end, s_duration))
+                    bot.sendMessage(chat_id=u.message.chat_id, text="Session: id={}, start={}, lastka={}, duration={}s"
+                                    .format(s_id, s_start, s_end, s_duration))
                 else:
                     bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
 
@@ -131,16 +130,20 @@ def loop(bot):
                     try:
                         uid = int(message_text[8:])
                         uinfo = get_user_by_id(uid)
-                        if uinfo == None:
-                            bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Unknown user ID.".format(emoji_bang))
+                        if uinfo is None:
+                            bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Unknown user ID."
+                                            .format(emoji_bang))
                         else:
                             add_user_to_beg(uid)
-                            bot.sendMessage(chat_id=u.message.chat_id, text="{} Successfully added: {} ({}) {} Welcome! {}".format(emoji_party_ball, uinfo[1], uinfo[3], emoji_sparkle, emoji_party_cone))
+                            bot.sendMessage(chat_id=u.message.chat_id,
+                                            text="{} Successfully added: {} ({}) {} Welcome! {}"
+                                            .format(emoji_party_ball, uinfo[1], uinfo[3], emoji_sparkle,
+                                                    emoji_party_cone))
                     except ValueError:
-                        bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Malformed user ID.".format(emoji_bang))
+                        bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Malformed user ID."
+                                        .format(emoji_bang))
                 else:
                     bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
-
 
             LAST_UPDATE_ID = u.update_id + 1
     except telegram.TelegramError as err:
@@ -151,18 +154,23 @@ def loop(bot):
         time.sleep(10)
 
 
-
-
 def match_text(text):
+    """
+        Matches the given text to several patterns and returns a string if a bot reply is warranted, or None if not.
+
+        @param text The text that we try to match the patterns to.
+    """
+
+    # Matches an Imgur direct link.
     text = text.decode("utf-8")
     if text.startswith("http://i.imgur.com/") and not text.endswith(".gifv"):
         site = urllib.request.urlopen(text)
         if site.getheader("Content-Type") == "image/gif":
-            # GIF not as GIFV
+            # GIF not linked as GIFV
             sitesize = int(site.getheader("Content-Length")) / 1024 / 1024
             newsite = "{}.gifv".format(text[:-4])
-            return "{} Warning: Non-GIFV GIF detected! You don't want to download {:.2f}MB, do you? Here's the proper link: {} {}".format(emoji_warning, sitesize, emoji_earth_africaeurope, newsite)
-
+            return "{} Warning: Non-GIFV GIF detected! You don't want to download {:.2f}MB, do you?" \
+                   " Here's the proper link: {} {}".format(emoji_warning, sitesize, emoji_earth_africaeurope, newsite)
 
     # That's what she said matching... simplex, change later into a more sophisticated matching...
     twss = b"\xef\xbb\xbf \xcd\xa1\xc2\xb0 \xcd\x9c\xca\x96 \xcd\xa1\xc2\xb0".decode("utf-8")
@@ -178,11 +186,14 @@ def match_text(text):
     if hits >= threshold:
         return twss
 
+    # If nothing has been matched until this point, just return None.
     return None
 
 
-
 def load_config():
+    """
+        Loads bot settings and configuration from the file config.json.
+    """
     global KNOWN_USERS
     global SESSION_ID
     global DB_FILE
@@ -205,7 +216,6 @@ def load_config():
     TS3_PWD = config["ts3_pwd"]
     TS3_SRV = config["ts3_srv"]
 
-
     newdb = not os.path.exists(DB_FILE)
     con = sqlite3.connect(DB_FILE)
     if newdb:
@@ -214,7 +224,8 @@ def load_config():
             schema = f.read()
         con.executescript(schema)
         c = con.cursor()
-        c.execute("insert into user (username, firstname, telegram_id, added, beg, admin) values ('Admin', 'Admin', ?, datetime('now'), 1, 1)", (ADMIN_ID, ))
+        c.execute("insert into user (username, firstname, telegram_id, added, beg, admin) values "
+                  "('Admin', 'Admin', ?, datetime('now'), 1, 1)", (ADMIN_ID, ))
         con.commit()
         c.close()
     else:
@@ -230,15 +241,27 @@ def load_config():
 
 
 def send_keep_alive(session_id):
+    """
+        Saves the current time to the database to keep track of the last known working time in case the bot crashed.
+
+        @param session_id The ID of the current bot session.
+    """
     con = sqlite3.connect(DB_FILE)
     con.execute("update session set end = datetime('now') where id=?", (session_id, ))
     con.commit()
     con.close()
 
+
 def get_session(session_id):
+    """
+        Gets information (start time, end time, and duration about the current session by session_id.
+
+        @param session_id The ID of the current bot session.
+    """
     con = sqlite3.connect(DB_FILE)
     c = con.cursor()
-    c.execute("select id, start, end, strftime('%s', end) - strftime('%s', start) as duration from session where id=?", (session_id, ))
+    c.execute("select id, start, end, strftime('%s', end) - strftime('%s', start) as duration from session where id=?",
+              (session_id, ))
     result = c.fetchone()
     c.close()
     con.close()
@@ -246,25 +269,42 @@ def get_session(session_id):
 
 
 def add_user(user):
+    """
+        Adds the given user to the database and the KNOWN_USERS dictionary.
+
+        @param user The user as defined by the telegram module.
+    """
     global KNOWN_USERS
     con = sqlite3.connect(DB_FILE)
     c = con.cursor()
-    c.execute("insert into user (username, firstname, lastname, telegram_id, added, beg, admin) values (?, ?, ?, ?, datetime('now'), 0, 0)", (user.username, user.first_name, user.last_name, user.id))
+    c.execute("insert into user (username, firstname, lastname, telegram_id, added, beg, admin) values "
+              "(?, ?, ?, ?, datetime('now'), 0, 0)", (user.username, user.first_name, user.last_name, user.id))
     con.commit()
     c.close()
     con.close()
-    KNOWN_USERS[user.id]
+    KNOWN_USERS[user.id] = 1
 
-def get_user_by_id(id):
+
+def get_user_by_id(user_id):
+    """
+        Returns information (username, first name, last name, telegram id)) about a user identified by his
+        user_id (not telegram id!).
+
+        @param user_id The user id as it is in the database.
+    """
     con = sqlite3.connect(DB_FILE)
     c = con.cursor()
-    c.execute("select username, firstname, lastname, telegram_id from user where id=?", (id, ))
+    c.execute("select username, firstname, lastname, telegram_id from user where id=?", (user_id, ))
     result = c.fetchone()
     c.close()
     con.close()
     return result
 
+
 def get_non_beg_users():
+    """
+        Returns a list of all users in the database that are not tagged as BEG members.
+    """
     con = sqlite3.connect(DB_FILE)
     c = con.cursor()
     c.execute("select id, username, firstname, lastname, telegram_id from user where beg != 1")
@@ -273,13 +313,25 @@ def get_non_beg_users():
     con.close()
     return result
 
-def add_user_to_beg(id):
+
+def add_user_to_beg(user_id):
+    """
+        Tags the user with the given user_id as a BEG member.
+
+        @param user_id The user id as it is in the database.
+    """
     con = sqlite3.connect(DB_FILE)
-    con.execute("update user set beg = 1 where id=?", (id, ))
+    con.execute("update user set beg = 1 where id=?", (user_id, ))
     con.commit()
     con.close()
 
+
 def is_admin(telegram_id):
+    """
+        Checks if the user with the given telegram id has administrator permissions.
+
+        @param telegram_id The users telegram id.
+    """
     con = sqlite3.connect(DB_FILE)
     c = con.cursor()
     c.execute("select count(id) from user where admin=1 and telegram_id=?", (telegram_id, ))
@@ -290,6 +342,11 @@ def is_admin(telegram_id):
 
 
 def is_beg(telegram_id):
+    """
+        Checks if the user with the given telegram id is tagged as a BEG member.
+
+        @param telegram_id The users telegram id.
+    """
     con = sqlite3.connect(DB_FILE)
     c = con.cursor()
     c.execute("select count(id) from user where beg=1 and telegram_id=?", (telegram_id, ))
@@ -300,6 +357,10 @@ def is_beg(telegram_id):
 
 
 def get_ts3_status():
+    """
+        Connects to the Teamspeak 3 server as defined in the configuration file and returns a string
+        resembling the currently online users.
+    """
     ts3con = ts3.query.TS3Connection(TS3_SRV)
 
     channels = {}
@@ -313,10 +374,12 @@ def get_ts3_status():
         for client in resp.parsed:
             if not client["client_nickname"].startswith("{} from ".format(TS3_USR)):
                 channels[client["cid"]] = 0
-                clients.append( (client["client_nickname"], client["cid"]) )
+                clients.append((client["client_nickname"], client["cid"]))
 
         if len(clients) == 0:
-            return "{}{} TeamSpeak 3 {}{}\n There's nobody online {}".format(emoji_thick_dash, emoji_thick_dash, emoji_thick_dash, emoji_thick_dash, emoji_sad)
+            return "{}{} TeamSpeak 3 {}{}\n There's nobody online {}".format(emoji_thick_dash, emoji_thick_dash,
+                                                                             emoji_thick_dash, emoji_thick_dash,
+                                                                             emoji_sad)
 
         resp = ts3con.channellist()
         for channel in resp.parsed:
@@ -331,20 +394,20 @@ def get_ts3_status():
             clientlines = []
             for client in range(0, len(channels[c]["clients"])):
                 if client == len(channels[c]["clients"])-1:
-                    clientlines.append(" {} {} {}".format(emoji_crossing_l, emoji_blue_ball, channels[c]["clients"][client]))
+                    clientlines.append(" {} {} {}".format(emoji_crossing_l, emoji_blue_ball,
+                                                          channels[c]["clients"][client]))
                 else:
-                    clientlines.append(" {} {} {}".format(emoji_crossing_t, emoji_blue_ball, channels[c]["clients"][client]))
+                    clientlines.append(" {} {} {}".format(emoji_crossing_t, emoji_blue_ball,
+                                                          channels[c]["clients"][client]))
 
             entries.append("{} {}\n{}".format(emoji_speech_bubble, channels[c]["name"], "\n".join(clientlines)))
 
-        return "{}{} TeamSpeak 3 {}{}\n{}".format(emoji_thick_dash, emoji_thick_dash, emoji_thick_dash, emoji_thick_dash, "\n".join(entries))
+        return "{}{} TeamSpeak 3 {}{}\n{}".format(emoji_thick_dash, emoji_thick_dash, emoji_thick_dash,
+                                                  emoji_thick_dash, "\n".join(entries))
 
     except ts3.query.TS3QueryError as err:
         print("TS3 query failed:", err.resp.error["msg"])
         return "{} TS3 Error {}".format(emoji_bang, emoji_bang)
-
-
-
 
 
 if __name__ == "__main__":
