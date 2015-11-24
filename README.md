@@ -7,6 +7,9 @@ This is a bot-backend for the messenger Telegram. It allows users to run simple 
 For an introduction for bot creation and usage see: https://core.telegram.org/bots
 
 ## Python Packages required:
+
+This bot was implemented using Python >= 3.4. Besides several standard libraries, the following packages are required:
+
 * `python-telegram-bot` - https://github.com/leandrotoledo/python-telegram-bot/
 * `py-ts3` - https://github.com/benediktschmitt/py-ts3
 
@@ -23,7 +26,7 @@ Here is an example of the `config.json` file:
 
 ```
 {
-  "token": "token for the telegram bog",
+  "token": "token for the telegram bot",
   "admin_id": telegram id of the first administrator,
   "group_id": telegram id of the group chat,
   "db_file": "path to the sqlite database file (will be generated if missing)",
