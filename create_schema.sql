@@ -22,9 +22,11 @@ create table session (
 -- Persists messages in an archive
 create table message (
     id          integer primary key autoincrement not null,
+    session_id  integer,
+    message_id  integer,
+    update_id   integer,
     telegram_id integer,
     group_id    integer,
-    posted      date,
-    content     text,
-    type        text
+    received    date,
+    content     text
 );

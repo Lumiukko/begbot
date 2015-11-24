@@ -80,6 +80,8 @@ def loop(bot):
 
     try:
         for u in bot.getUpdates(offset=LAST_UPDATE_ID, timeout=6):
+            archive(u)
+
             message_text = u.message.text.encode('utf-8')
             sender = u.message.from_user.id
 
@@ -152,6 +154,25 @@ def loop(bot):
     except ValueError as err:
         print("Value Error, sleeping 10s and trying again: {}".format(err))
         time.sleep(10)
+
+
+def archive(update):
+    """
+        Archives/persists the received update into the database.
+
+        @param update The update as defined by the telegram module.
+    """
+    if update.message.chat.type == "group" and update.message.chat.id == BEG_ID:
+        user = update.message.from_user
+        con = sqlite3.connect(DB_FILE)
+        c = con.cursor()
+        c.execute("insert into message (session_id, telegram_id, message_id, update_id, group_id, content, received)"
+                  " values (?, ?, ?, ?, ?, ?, datetime('now'))",
+                  (SESSION_ID, user.id, update.message.message_id, update.update_id,
+                   update.message.chat.id, str(update)))
+        con.commit()
+        c.close()
+        con.close()
 
 
 def match_text(text):
