@@ -6,6 +6,7 @@ import os
 import sqlite3
 import json
 import random
+import urllib.request
 
 
 # Global Variables
@@ -34,6 +35,8 @@ emoji_speech_bubble = b"\xf0\x9f\x92\xac".decode("utf-8")
 emoji_thick_dash = b"\xe2\x9e\x96".decode("utf-8")
 emoji_crossing_t = b"\xe2\x94\x9c".decode("utf-8")
 emoji_crossing_l = b"\xe2\x94\x94".decode("utf-8")
+emoji_warning = b"\xe2\x9a\xa0\xef\xb8\x8f".decode("utf-8")
+emoji_earth_africaeurope = b"\xf0\x9f\x8c\x8d".decode("utf-8")
 
 
 # Global variables for messages
@@ -72,78 +75,101 @@ def main():
 def loop(bot):
     global LAST_UPDATE_ID
 
-    for u in bot.getUpdates(offset=LAST_UPDATE_ID, timeout=6):
-        message_text = u.message.text.encode('utf-8')
-        sender = u.message.from_user.id
 
-        if sender not in KNOWN_USERS:
-            add_user(u.message.from_user)
-            #print("New User added: {}".format(u.message.from_user))
+    try:
+        for u in bot.getUpdates(offset=LAST_UPDATE_ID, timeout=6):
+            message_text = u.message.text.encode('utf-8')
+            sender = u.message.from_user.id
 
-        #print("Received Message from {}: {}".format(sender, message_text))
+            if sender not in KNOWN_USERS:
+                add_user(u.message.from_user)
+                #print("New User added: {}".format(u.message.from_user))
 
+            #print("Received Message from {}: {}".format(sender, message_text))
 
-        # Public string matching
-        response = match_text(message_text)
-        if response != None:
-            bot.sendMessage(chat_id=u.message.chat_id, text=response)
-
-
-        # BEG only commands
-        # Maybe check if u.message.chat.type == "private" or "group", if necessary.
-        if message_text == b"/ts3":
-            if is_beg(sender):
-                get_ts3_status()
-                #print("TS3 Status Request received.")
-                ts3status = get_ts3_status()
-                bot.sendMessage(chat_id=u.message.chat_id, text=ts3status)
-            else:
-                bot.sendMessage(chat_id=u.message.chat_id, text="{} Sorry, only for Bouncing Egg members.".format(emoji_bang))
+            with open("mlog", "a", encoding="utf-8") as f:
+                f.write(message_text.decode("utf-8"))
+                f.write("\n")
+            f.close()
 
 
-        # Admin only commands
-        if message_text == b"/session":
-            if is_admin(sender):
-                (s_id, s_start, s_end, s_duration) = get_session(SESSION_ID)
-                bot.sendMessage(chat_id=u.message.chat_id, text="Session: id={}, start={}, lastka={}, duration={}s".format(s_id, s_start, s_end, s_duration))
-            else:
-                bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
-
-        if message_text == b"/listnonbeg":
-            if is_admin(sender):
-                nonbeg = "\n".join([str(u) for u in get_non_beg_users()])
-                bot.sendMessage(chat_id=u.message.chat_id, text="Non-BEG Users:\n{}".format(nonbeg))
-            else:
-                bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
-
-        if message_text.startswith(b"/addbeg "):
-            if is_admin(sender):
-                try:
-                    uid = int(message_text[8:])
-                    uinfo = get_user_by_id(uid)
-                    if uinfo == None:
-                        bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Unknown user ID.".format(emoji_bang))
-                    else:
-                        add_user_to_beg(uid)
-                        bot.sendMessage(chat_id=u.message.chat_id, text="{} Successfully added: {} ({}) {} Welcome! {}".format(emoji_party_ball, uinfo[1], uinfo[3], emoji_sparkle, emoji_party_cone))
-                except ValueError:
-                    bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Malformed user ID.".format(emoji_bang))
-            else:
-                bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
+            # Public string matching
+            response = match_text(message_text)
+            if response != None:
+                bot.sendMessage(chat_id=u.message.chat_id, text=response)
 
 
-        LAST_UPDATE_ID = u.update_id + 1
+            # BEG only commands
+            # Maybe check if u.message.chat.type == "private" or "group", if necessary.
+            if message_text == b"/ts3":
+                if is_beg(sender):
+                    get_ts3_status()
+                    #print("TS3 Status Request received.")
+                    ts3status = get_ts3_status()
+                    bot.sendMessage(chat_id=u.message.chat_id, text=ts3status)
+                else:
+                    bot.sendMessage(chat_id=u.message.chat_id, text="{} Sorry, only for Bouncing Egg members.".format(emoji_bang))
+
+
+            # Admin only commands
+            if message_text == b"/session":
+                if is_admin(sender):
+                    (s_id, s_start, s_end, s_duration) = get_session(SESSION_ID)
+                    bot.sendMessage(chat_id=u.message.chat_id, text="Session: id={}, start={}, lastka={}, duration={}s".format(s_id, s_start, s_end, s_duration))
+                else:
+                    bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
+
+            if message_text == b"/listnonbeg":
+                if is_admin(sender):
+                    nonbeg = "\n".join([str(u) for u in get_non_beg_users()])
+                    bot.sendMessage(chat_id=u.message.chat_id, text="Non-BEG Users:\n{}".format(nonbeg))
+                else:
+                    bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
+
+            if message_text.startswith(b"/addbeg "):
+                if is_admin(sender):
+                    try:
+                        uid = int(message_text[8:])
+                        uinfo = get_user_by_id(uid)
+                        if uinfo == None:
+                            bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Unknown user ID.".format(emoji_bang))
+                        else:
+                            add_user_to_beg(uid)
+                            bot.sendMessage(chat_id=u.message.chat_id, text="{} Successfully added: {} ({}) {} Welcome! {}".format(emoji_party_ball, uinfo[1], uinfo[3], emoji_sparkle, emoji_party_cone))
+                    except ValueError:
+                        bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Malformed user ID.".format(emoji_bang))
+                else:
+                    bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
+
+
+            LAST_UPDATE_ID = u.update_id + 1
+    except telegram.TelegramError as err:
+        print("Telegram Error, sleeping 10s and trying again: {}".format(err))
+        time.sleep(10)
+    except ValueError as err:
+        print("Value Error, sleeping 10s and trying again: {}".format(err))
+        time.sleep(10)
 
 
 
 
 def match_text(text):
+    text = text.decode("utf-8")
+    if text.startswith("http://i.imgur.com/") and not text.endswith(".gifv"):
+        site = urllib.request.urlopen(text)
+        if site.getheader("Content-Type") == "image/gif":
+            # GIF not as GIFV
+            sitesize = int(site.getheader("Content-Length")) / 1024 / 1024
+            newsite = "{}.gifv".format(text[:-4])
+            return "{} Warning: Non-GIFV GIF detected! You don't want to download {:.2f}MB, do you? Here's the proper link: {} {}".format(emoji_warning, sitesize, emoji_earth_africaeurope, newsite)
+
+
     # That's what she said matching... simplex, change later into a more sophisticated matching...
     twss = b"\xef\xbb\xbf \xcd\xa1\xc2\xb0 \xcd\x9c\xca\x96 \xcd\xa1\xc2\xb0".decode("utf-8")
     twss = "That's what she said ({})".format(twss)
     wordbag = "zu aber riesig passt gross groß wow lang ui eng klein nie"
     wordbag = wordbag.split()
-    textbag = text.decode("utf-8").split()
+    textbag = text.split()
     hits = 0
     for w in wordbag:
         if w in textbag:
