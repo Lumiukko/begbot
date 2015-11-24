@@ -18,3 +18,13 @@ create table session (
     start       date,
     end         date
 );
+
+-- Persists messages in an archive
+create table message (
+    id          integer primary key autoincrement not null,
+    telegram_id integer,
+    group_id    integer,
+    posted      date,
+    content     text,
+    type        text
+);
