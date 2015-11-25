@@ -21,6 +21,8 @@ TOKEN = ""
 TS3_USR = ""
 TS3_PWD = ""
 TS3_SRV = ""
+STEAM_API_KEY = ""
+STEAM_IDS = []
 
 
 # Global variables for Emoji
@@ -38,6 +40,8 @@ emoji_crossing_t = b"\xe2\x94\x9c".decode("utf-8")
 emoji_crossing_l = b"\xe2\x94\x94".decode("utf-8")
 emoji_warning = b"\xe2\x9a\xa0\xef\xb8\x8f".decode("utf-8")
 emoji_earth_africaeurope = b"\xf0\x9f\x8c\x8d".decode("utf-8")
+emoji_orange_rhombus = b"\xf0\x9f\x94\xb6".decode("utf-8")
+emoji_squiggly_line = b"\xe3\x80\xb0".decode("utf-8")
 
 # Global variables for messages
 msg_only_for_admins = "{} Sorry, only for bot administrators.".format(emoji_bang)
@@ -107,6 +111,15 @@ def loop(bot):
                     get_ts3_status()
                     ts3status = get_ts3_status()
                     bot.sendMessage(chat_id=u.message.chat_id, text=ts3status)
+                else:
+                    bot.sendMessage(chat_id=u.message.chat_id, text="{} Sorry, only for Bouncing Egg members."
+                                    .format(emoji_bang))
+
+            if message_text == b"/steam":
+                if is_beg(sender):
+                    get_ts3_status()
+                    steamstats = get_steam_status()
+                    bot.sendMessage(chat_id=u.message.chat_id, text=steamstats)
                 else:
                     bot.sendMessage(chat_id=u.message.chat_id, text="{} Sorry, only for Bouncing Egg members."
                                     .format(emoji_bang))
@@ -224,6 +237,8 @@ def load_config():
     global TS3_PWD
     global TS3_USR
     global TS3_SRV
+    global STEAM_API_KEY
+    global STEAM_IDS
 
     with open("config.json", "r") as f:
         config = json.load(f)
@@ -236,6 +251,8 @@ def load_config():
     TS3_USR = config["ts3_usr"]
     TS3_PWD = config["ts3_pwd"]
     TS3_SRV = config["ts3_srv"]
+    STEAM_API_KEY = config["steam_api_key"]
+    STEAM_IDS = [str(sid) for sid in config["steam_ids"]]
 
     newdb = not os.path.exists(DB_FILE)
     con = sqlite3.connect(DB_FILE)
@@ -375,6 +392,48 @@ def is_beg(telegram_id):
     c.close()
     con.close()
     return result
+
+
+def get_steam_status():
+    """
+        Connects to the Steam Web API as defined in the configuration file and returns a string
+        resembling the currently online users in steam, or None if the request failed.
+    """
+    states = {
+        0:  "Offline",
+        1:  "Online",
+        2:  "Busy",
+        3:  "Away",
+        4:  "Snooze",
+        5:  "Looking to Trade",
+        6:  "Looking to Play"
+    }
+
+    site = urllib.request.urlopen("http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={}&steamids={}"
+                                  .format(STEAM_API_KEY, ",".join(STEAM_IDS)))
+    content = site.read()
+    try:
+        data = json.loads(content.decode("utf-8"))
+        pinfo = []
+        for p in data["response"]["players"]:
+            if p["personastate"] != 0:
+                pstate = states[p["personastate"]]
+                if "gameid" in p:
+                    pstate = "{} / InGame".format(pstate)
+                pinfo.append("{} {} {}".format(p["personaname"], emoji_squiggly_line, pstate))
+        if len(pinfo) > 0:
+            return "{}{} Steam {}{}\n{} {}".format(emoji_thick_dash, emoji_thick_dash, emoji_thick_dash,
+                                                   emoji_thick_dash, emoji_orange_rhombus,
+                                                   "\n{} ".format(emoji_orange_rhombus).join(pinfo))
+        else:
+            return "{}{} Steam {}{}\nThere's nobody online {}".format(emoji_thick_dash, emoji_thick_dash,
+                                                                      emoji_thick_dash, emoji_thick_dash, emoji_sad)
+
+    except ValueError:
+        print("Error: Steam API sent empty response.")
+
+    return "{}{} Steam {}{}\nThe Steam API sent nothing {}".format(emoji_thick_dash, emoji_thick_dash,
+                                                                   emoji_thick_dash, emoji_thick_dash, emoji_sad)
 
 
 def get_ts3_status():
