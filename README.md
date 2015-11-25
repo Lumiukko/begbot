@@ -16,6 +16,7 @@ This bot was implemented using Python >= 3.4. Besides several standard libraries
 ## Features
 
 * On the command `/ts3` the bot will answer with an overview of people on the linked Teamspeak 3 server.
+* On the commant `/steam` the bot will answer with an overview of people online in Steam (out of all Steam IDs defined in the configuration file).
 * If someone links a GIF from Imgur, which does not have the .gifv ending (i.e. WEBM converted GIF for saving bandwidth), the bot will post the corresponding GIFV link and mention how large the GIF file would have been to download in megabytes.
 
 ## Configuration
@@ -33,6 +34,12 @@ Here is an example of the `config.json` file:
   "db_schema": "path to the schema sql command (is used to create the database, if it doesn't exist)",
   "ts3_usr": "teamspeak 3 administrator username",
   "ts3_pwd": "teamspeak 3 administrator password",
-  "ts3_srv": "teamspeak 3 server address"
+  "ts3_srv": "teamspeak 3 server address",
+  "steam_api_key": "steam web api key",
+  "steam_ids": [
+    first person steam id,
+    second person steam id,
+    ...
+  ]
 }
 ```
