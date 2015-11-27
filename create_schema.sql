@@ -9,7 +9,8 @@ create table user (
     telegram_id integer,
     added       date,
     beg         integer,
-    admin       integer
+    admin       integer,
+    bday        date
 );
 
 -- Keeps track of the sessions the bot is active/connected.

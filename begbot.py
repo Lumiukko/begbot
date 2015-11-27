@@ -23,6 +23,7 @@ TS3_PWD = ""
 TS3_SRV = ""
 STEAM_API_KEY = ""
 STEAM_IDS = []
+TODAYS_BDAY_CHECK = False
 
 
 # Global variables for Emoji
@@ -42,6 +43,9 @@ emoji_warning = b"\xe2\x9a\xa0\xef\xb8\x8f".decode("utf-8")
 emoji_earth_africaeurope = b"\xf0\x9f\x8c\x8d".decode("utf-8")
 emoji_orange_rhombus = b"\xf0\x9f\x94\xb6".decode("utf-8")
 emoji_squiggly_line = b"\xe3\x80\xb0".decode("utf-8")
+emoji_cake = b"\xf0\x9f\x8e\x82".decode("utf-8")
+emoji_present = b"\xf0\x9f\x8e\x81".decode("utf-8")
+emoji_balloon = b"\xf0\x9f\x8e\x88".decode("utf-8")
 
 # Global variables for messages
 msg_only_for_admins = "{} Sorry, only for bot administrators.".format(emoji_bang)
@@ -81,7 +85,19 @@ def loop(bot):
         @param bot The telegram bot instance created by the telegram module.
     """
     global LAST_UPDATE_ID
+    global TODAYS_BDAY_CHECK
 
+    # Management of the Birthday check. Reset from 0-1, check from 9-10.
+    now = datetime.datetime.now()
+    if now.hour == 0:
+        TODAYS_BDAY_CHECK = False
+    if now.hour == 9 and not TODAYS_BDAY_CHECK:
+        bday_messages = check_for_birthdays()
+        for bdm in bday_messages:
+            bot.sendMessage(chat_id=BEG_ID, text=bdm)
+        TODAYS_BDAY_CHECK = True
+
+    # Receiving and processing updates.
     try:
         for u in bot.getUpdates(offset=LAST_UPDATE_ID, timeout=6):
             archive(u)
@@ -133,12 +149,47 @@ def loop(bot):
                 else:
                     bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
 
+            if message_text == b"/listusers":
+                if is_admin(sender):
+                    users = "\n".join([str(u) for u in get_all_users()])
+                    bot.sendMessage(chat_id=u.message.chat_id, text="Users:\n{}".format(users))
+                else:
+                    bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
+
             if message_text == b"/listnonbeg":
                 if is_admin(sender):
                     nonbeg = "\n".join([str(u) for u in get_non_beg_users()])
                     bot.sendMessage(chat_id=u.message.chat_id, text="Non-BEG Users:\n{}".format(nonbeg))
                 else:
                     bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
+
+            if message_text.startswith(b"/setbday "):
+                if is_admin(sender):
+                    params = message_text[9:].split()
+                    if len(params) != 2:
+                        bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Wrong parameter count."
+                                        .format(emoji_bang))
+                    else:
+                        try:
+                            uid = int(params[0])
+                            bday = params[1].decode("utf-8")
+                            if len(bday) != 10:
+                                bot.sendMessage(chat_id=u.message.chat_id,
+                                                text="{} Error. Malformed date, expected format: \"YYYY-MM-DD\"."
+                                                .format(emoji_bang))
+                            else:
+                                result = set_bday(uid, bday)
+                                if result is None:
+                                    bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Unknown user ID."
+                                                    .format(emoji_bang))
+                                else:
+                                    (uname, fname, tid) = result
+                                    bot.sendMessage(chat_id=u.message.chat_id,
+                                                    text="Successfully set birthday for {} ({}) to {}."
+                                                    .format(uname, tid, bday))
+                        except ValueError:
+                            bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Malformed user ID."
+                                            .format(emoji_bang))
 
             if message_text.startswith(b"/addbeg "):
                 if is_admin(sender):
@@ -306,6 +357,25 @@ def get_session(session_id):
     return result
 
 
+def set_bday(user_id, bday):
+    """
+        Adds the given birth date for the given user to the database.
+
+        @param user_id The user id as it is in the database.
+        @param bday The birth date as a string in the format "YYYY-MM-DD".
+        @return Returns a tuple of (user name, first name, telegram id) for the given user id.
+    """
+    con = sqlite3.connect(DB_FILE)
+    c = con.cursor()
+    c.execute("update user set bday = ? where id = ?", (bday, user_id))
+    con.commit()
+    c.execute("select username, firstname, telegram_id from user where id = ?", (user_id, ))
+    result = c.fetchone()
+    c.close()
+    con.close()
+    return result
+
+
 def add_user(user):
     """
         Adds the given user to the database and the KNOWN_USERS dictionary.
@@ -334,6 +404,19 @@ def get_user_by_id(user_id):
     c = con.cursor()
     c.execute("select username, firstname, lastname, telegram_id from user where id=?", (user_id, ))
     result = c.fetchone()
+    c.close()
+    con.close()
+    return result
+
+
+def get_all_users():
+    """
+        Returns a list of all users in the database.
+    """
+    con = sqlite3.connect(DB_FILE)
+    c = con.cursor()
+    c.execute("select * from user")
+    result = c.fetchall()
     c.close()
     con.close()
     return result
@@ -392,6 +475,38 @@ def is_beg(telegram_id):
     c.close()
     con.close()
     return result
+
+
+def check_for_birthdays():
+    """
+        Checks if one or more of the bouncing egg members have a birthday today and returns a list of strings
+        corresponding to birthday wishes for each user with a birthday today.
+    """
+    con = sqlite3.connect(DB_FILE)
+    c = con.cursor()
+    c.execute("select id, firstname, bday from user where beg = 1")
+    result = c.fetchall()
+    c.close()
+    con.close()
+    msgs = []
+    for r in result:
+        if r[2] is not None:
+            bday = r[2].split("-")
+            if len(bday) == 3:
+                try:
+                    for i, bde in enumerate(bday):
+                        bday[i] = int(bde)
+                    today = datetime.datetime.now()
+                    today = (today.month, today.day)
+                    bday = (bday[1], bday[2])
+                    if today == bday:
+                        msg = "{}  {}  {}  Happy Birthday, {}!  {}  {}  {}".format(emoji_party_cone, emoji_sparkle,
+                                                                                   emoji_balloon, r[1], emoji_balloon,
+                                                                                   emoji_cake, emoji_present)
+                        msgs.append(msg)
+                except ValueError:
+                    print("Encountered malformed birthday for user id {}, please check and correct.".format(r[0]))
+    return msgs
 
 
 def get_steam_status():
