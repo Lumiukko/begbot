@@ -17,7 +17,12 @@ This bot was implemented using Python >= 3.4. Besides several standard libraries
 
 * On the command `/ts3` the bot will answer with an overview of people on the linked Teamspeak 3 server.
 * On the commant `/steam` the bot will answer with an overview of people online in Steam (out of all Steam IDs defined in the configuration file).
+* Admins can use the `/listusers` command to get a basic dump of all rows in the user database table.
+* Admins can use the `/listnonbeg` command to get a basic dump of all rows with the beg flag not set in the user database table
+* Admins can use the `/setbday <UID> <BDAY>` command to set the birth data of a user, where `<UID>` is the corresponding user id in the database and `<BDAY>` is the birth date of that user in the format `YYYY-MM-DD`.
+* The bot checks every day at 9:00 if any of the users with the set beg flag has birthday and posts birthday wishes to the chat accordingly.
 * If someone links a GIF from Imgur, which does not have the .gifv ending (i.e. WEBM converted GIF for saving bandwidth), the bot will post the corresponding GIFV link and mention how large the GIF file would have been to download in megabytes.
+* The bot archives every update in JSON format into the database for future features, e.g. an archive function.
 
 ## Configuration
 
