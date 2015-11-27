@@ -1,3 +1,5 @@
+""" This is the Bouncing Egg bot backend for a Telegram bot. """
+
 # Imports
 import telegram
 import ts3.query
@@ -8,7 +10,6 @@ import sqlite3
 import json
 import random
 import urllib.request
-
 
 # Global Variables
 LAST_UPDATE_ID = 0
@@ -25,30 +26,29 @@ STEAM_API_KEY = ""
 STEAM_IDS = []
 TODAYS_BDAY_CHECK = False
 
-
 # Global variables for Emoji
-emoji_sad = b"\xf0\x9f\x98\x9f".decode("utf-8")
-emoji_blue_rhombus = b"\xf0\x9f\x94\xb9".decode("utf-8")
-emoji_bang = b"\xf0\x9f\x92\xa2".decode("utf-8")
-emoji_party_cone = b"\xf0\x9f\x8e\x89".decode("utf-8")
-emoji_party_ball = b"\xf0\x9f\x8e\x8a".decode("utf-8")
-emoji_sparkle = b"\xe2\x9c\xa8".decode("utf-8")
-emoji_blue_ball = b"\xf0\x9f\x94\xb5".decode("utf-8")
-emoji_red_ball = b"\xf0\x9f\x94\xb4".decode("utf-8")
-emoji_speech_bubble = b"\xf0\x9f\x92\xac".decode("utf-8")
-emoji_thick_dash = b"\xe2\x9e\x96".decode("utf-8")
-emoji_crossing_t = b"\xe2\x94\x9c".decode("utf-8")
-emoji_crossing_l = b"\xe2\x94\x94".decode("utf-8")
-emoji_warning = b"\xe2\x9a\xa0\xef\xb8\x8f".decode("utf-8")
-emoji_earth_africaeurope = b"\xf0\x9f\x8c\x8d".decode("utf-8")
-emoji_orange_rhombus = b"\xf0\x9f\x94\xb6".decode("utf-8")
-emoji_squiggly_line = b"\xe3\x80\xb0".decode("utf-8")
-emoji_cake = b"\xf0\x9f\x8e\x82".decode("utf-8")
-emoji_present = b"\xf0\x9f\x8e\x81".decode("utf-8")
-emoji_balloon = b"\xf0\x9f\x8e\x88".decode("utf-8")
+EMOJI_SAD = b"\xf0\x9f\x98\x9f".decode("utf-8")
+EMOJI_BLUE_RHOMBUS = b"\xf0\x9f\x94\xb9".decode("utf-8")
+EMOJI_BANG = b"\xf0\x9f\x92\xa2".decode("utf-8")
+EMOJI_PARTY_CONE = b"\xf0\x9f\x8e\x89".decode("utf-8")
+EMOJI_PARTY_BALL = b"\xf0\x9f\x8e\x8a".decode("utf-8")
+EMOJI_SPARKLE = b"\xe2\x9c\xa8".decode("utf-8")
+EMOJI_BLUE_BALL = b"\xf0\x9f\x94\xb5".decode("utf-8")
+EMOJI_RED_BALL = b"\xf0\x9f\x94\xb4".decode("utf-8")
+EMOJI_SPEECH_BUBBLE = b"\xf0\x9f\x92\xac".decode("utf-8")
+EMOJI_THICK_DASH = b"\xe2\x9e\x96".decode("utf-8")
+EMOJI_CROSSING_T = b"\xe2\x94\x9c".decode("utf-8")
+EMOJI_CROSSING_L = b"\xe2\x94\x94".decode("utf-8")
+EMOJI_WARNING = b"\xe2\x9a\xa0\xef\xb8\x8f".decode("utf-8")
+EMOJI_EARTH_AFRICAEUROPE = b"\xf0\x9f\x8c\x8d".decode("utf-8")
+EMOJI_ORANGE_RHOMBUS = b"\xf0\x9f\x94\xb6".decode("utf-8")
+EMOJI_SQUIGGLY_LINE = b"\xe3\x80\xb0".decode("utf-8")
+EMOJI_CAKE = b"\xf0\x9f\x8e\x82".decode("utf-8")
+EMOJI_PRESENT = b"\xf0\x9f\x8e\x81".decode("utf-8")
+EMOJI_BALLOON = b"\xf0\x9f\x8e\x88".decode("utf-8")
 
 # Global variables for messages
-msg_only_for_admins = "{} Sorry, only for bot administrators.".format(emoji_bang)
+MSG_ONLY_FOR_ADMINS = "{} Sorry, only for bot administrators.".format(EMOJI_BANG)
 
 
 def main():
@@ -56,7 +56,6 @@ def main():
         Bot startup routine, loads the configuration, and enters the main loop.
     """
     global LAST_UPDATE_ID
-    global KNOWN_USERS
 
     load_config()
 
@@ -69,7 +68,8 @@ def main():
     except IndexError:
         LAST_UPDATE_ID = None
 
-    print("BEGBot connected: Name={}, ID={}, Started={}".format(bot_info.username, bot_info.id, started))
+    print("BEGBot connected: Name={}, ID={}, Started={}".format(bot_info.username,
+                                                                bot_info.id, started))
 
     print("SessionID: {}".format(SESSION_ID))
 
@@ -128,8 +128,9 @@ def loop(bot):
                     ts3status = get_ts3_status()
                     bot.sendMessage(chat_id=u.message.chat_id, text=ts3status)
                 else:
-                    bot.sendMessage(chat_id=u.message.chat_id, text="{} Sorry, only for Bouncing Egg members."
-                                    .format(emoji_bang))
+                    bot.sendMessage(chat_id=u.message.chat_id,
+                                    text="{} Sorry, only for Bouncing Egg members."
+                                    .format(EMOJI_BANG))
 
             if message_text == b"/steam":
                 if is_beg(sender):
@@ -137,59 +138,67 @@ def loop(bot):
                     steamstats = get_steam_status()
                     bot.sendMessage(chat_id=u.message.chat_id, text=steamstats)
                 else:
-                    bot.sendMessage(chat_id=u.message.chat_id, text="{} Sorry, only for Bouncing Egg members."
-                                    .format(emoji_bang))
+                    bot.sendMessage(chat_id=u.message.chat_id,
+                                    text="{} Sorry, only for Bouncing Egg members."
+                                    .format(EMOJI_BANG))
 
             # Admin only commands
             if message_text == b"/session":
                 if is_admin(sender):
                     (s_id, s_start, s_end, s_duration) = get_session(SESSION_ID)
-                    bot.sendMessage(chat_id=u.message.chat_id, text="Session: id={}, start={}, lastka={}, duration={}s"
+                    bot.sendMessage(chat_id=u.message.chat_id,
+                                    text="Session: id={}, start={}, lastka={}, duration={}s"
                                     .format(s_id, s_start, s_end, s_duration))
                 else:
-                    bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
+                    bot.sendMessage(chat_id=u.message.chat_id, text=MSG_ONLY_FOR_ADMINS)
 
             if message_text == b"/listusers":
                 if is_admin(sender):
                     users = "\n".join([str(u) for u in get_all_users()])
                     bot.sendMessage(chat_id=u.message.chat_id, text="Users:\n{}".format(users))
                 else:
-                    bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
+                    bot.sendMessage(chat_id=u.message.chat_id, text=MSG_ONLY_FOR_ADMINS)
 
             if message_text == b"/listnonbeg":
                 if is_admin(sender):
                     nonbeg = "\n".join([str(u) for u in get_non_beg_users()])
-                    bot.sendMessage(chat_id=u.message.chat_id, text="Non-BEG Users:\n{}".format(nonbeg))
+                    bot.sendMessage(chat_id=u.message.chat_id,
+                                    text="Non-BEG Users:\n{}".format(nonbeg))
                 else:
-                    bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
+                    bot.sendMessage(chat_id=u.message.chat_id, text=MSG_ONLY_FOR_ADMINS)
 
             if message_text.startswith(b"/setbday "):
                 if is_admin(sender):
                     params = message_text[9:].split()
                     if len(params) != 2:
-                        bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Wrong parameter count."
-                                        .format(emoji_bang))
+                        bot.sendMessage(chat_id=u.message.chat_id,
+                                        text="{} Error. Wrong parameter count."
+                                        .format(EMOJI_BANG))
                     else:
                         try:
                             uid = int(params[0])
                             bday = params[1].decode("utf-8")
                             if len(bday) != 10:
                                 bot.sendMessage(chat_id=u.message.chat_id,
-                                                text="{} Error. Malformed date, expected format: \"YYYY-MM-DD\"."
-                                                .format(emoji_bang))
+                                                text="{} Error. Malformed date, expected format:"
+                                                     " \"YYYY-MM-DD\"."
+                                                .format(EMOJI_BANG))
                             else:
                                 result = set_bday(uid, bday)
                                 if result is None:
-                                    bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Unknown user ID."
-                                                    .format(emoji_bang))
-                                else:
-                                    (uname, fname, tid) = result
                                     bot.sendMessage(chat_id=u.message.chat_id,
-                                                    text="Successfully set birthday for {} ({}) to {}."
+                                                    text="{} Error. Unknown user ID."
+                                                    .format(EMOJI_BANG))
+                                else:
+                                    (uname, _, tid) = result
+                                    bot.sendMessage(chat_id=u.message.chat_id,
+                                                    text="Successfully set birthday for"
+                                                         " {} ({}) to {}."
                                                     .format(uname, tid, bday))
                         except ValueError:
-                            bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Malformed user ID."
-                                            .format(emoji_bang))
+                            bot.sendMessage(chat_id=u.message.chat_id,
+                                            text="{} Error. Malformed user ID."
+                                            .format(EMOJI_BANG))
 
             if message_text.startswith(b"/addbeg "):
                 if is_admin(sender):
@@ -197,19 +206,21 @@ def loop(bot):
                         uid = int(message_text[8:])
                         uinfo = get_user_by_id(uid)
                         if uinfo is None:
-                            bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Unknown user ID."
-                                            .format(emoji_bang))
+                            bot.sendMessage(chat_id=u.message.chat_id,
+                                            text="{} Error. Unknown user ID."
+                                            .format(EMOJI_BANG))
                         else:
                             add_user_to_beg(uid)
                             bot.sendMessage(chat_id=u.message.chat_id,
                                             text="{} Successfully added: {} ({}) {} Welcome! {}"
-                                            .format(emoji_party_ball, uinfo[1], uinfo[3], emoji_sparkle,
-                                                    emoji_party_cone))
+                                            .format(EMOJI_PARTY_BALL, uinfo[1], uinfo[3],
+                                                    EMOJI_SPARKLE, EMOJI_PARTY_CONE))
                     except ValueError:
-                        bot.sendMessage(chat_id=u.message.chat_id, text="{} Error. Malformed user ID."
-                                        .format(emoji_bang))
+                        bot.sendMessage(chat_id=u.message.chat_id,
+                                        text="{} Error. Malformed user ID."
+                                        .format(EMOJI_BANG))
                 else:
-                    bot.sendMessage(chat_id=u.message.chat_id, text=msg_only_for_admins)
+                    bot.sendMessage(chat_id=u.message.chat_id, text=MSG_ONLY_FOR_ADMINS)
 
             LAST_UPDATE_ID = u.update_id + 1
     except telegram.TelegramError as err:
@@ -230,8 +241,8 @@ def archive(update):
         user = update.message.from_user
         con = sqlite3.connect(DB_FILE)
         c = con.cursor()
-        c.execute("insert into message (session_id, telegram_id, message_id, update_id, group_id, content, received)"
-                  " values (?, ?, ?, ?, ?, ?, datetime('now'))",
+        c.execute("insert into message (session_id, telegram_id, message_id, update_id, group_id,"
+                  " content, received) values (?, ?, ?, ?, ?, ?, datetime('now'))",
                   (SESSION_ID, user.id, update.message.message_id, update.update_id,
                    update.message.chat.id, str(update)))
         con.commit()
@@ -241,7 +252,8 @@ def archive(update):
 
 def match_text(text):
     """
-        Matches the given text to several patterns and returns a string if a bot reply is warranted, or None if not.
+        Matches the given text to several patterns and returns a string if a bot reply is
+        warranted, or None if not.
 
         @param text The text that we try to match the patterns to.
     """
@@ -254,8 +266,9 @@ def match_text(text):
             # GIF not linked as GIFV
             sitesize = int(site.getheader("Content-Length")) / 1024 / 1024
             newsite = "{}.gifv".format(text[:-4])
-            return "{} Warning: Non-GIFV GIF detected! You don't want to download {:.2f}MB, do you?" \
-                   " Here's the proper link: {} {}".format(emoji_warning, sitesize, emoji_earth_africaeurope, newsite)
+            return "{} Warning: Non-GIFV GIF detected! You don't want to download" \
+                   " {:.2f}MB, do you? Here's the proper link: {} {}" \
+                .format(EMOJI_WARNING, sitesize, EMOJI_EARTH_AFRICAEUROPE, newsite)
 
     # That's what she said matching... simplex, change later into a more sophisticated matching...
     twss = b"\xef\xbb\xbf \xcd\xa1\xc2\xb0 \xcd\x9c\xca\x96 \xcd\xa1\xc2\xb0".decode("utf-8")
@@ -267,7 +280,7 @@ def match_text(text):
     for w in wordbag:
         if w in textbag:
             hits += 1
-    threshold = random.randint(3, 3+int(len(textbag)/2))
+    threshold = random.randint(3, 3 + int(len(textbag) / 2))
     if hits >= threshold:
         return twss
 
@@ -314,7 +327,7 @@ def load_config():
         con.executescript(schema)
         c = con.cursor()
         c.execute("insert into user (username, firstname, telegram_id, added, beg, admin) values "
-                  "('Admin', 'Admin', ?, datetime('now'), 1, 1)", (ADMIN_ID, ))
+                  "('Admin', 'Admin', ?, datetime('now'), 1, 1)", (ADMIN_ID,))
         con.commit()
         c.close()
     else:
@@ -324,33 +337,36 @@ def load_config():
     SESSION_ID = c.lastrowid
     con.commit()
     c.execute("select telegram_id from user")
-    KNOWN_USERS = {u for (u, ) in c.fetchall()}
+    KNOWN_USERS = {u for (u,) in c.fetchall()}
     c.close()
     con.close()
 
 
 def send_keep_alive(session_id):
     """
-        Saves the current time to the database to keep track of the last known working time in case the bot crashed.
+        Saves the current time to the database to keep track of the last known working time in
+        case the bot crashed.
 
         @param session_id The ID of the current bot session.
     """
     con = sqlite3.connect(DB_FILE)
-    con.execute("update session set end = datetime('now') where id=?", (session_id, ))
+    con.execute("update session set end = datetime('now') where id=?", (session_id,))
     con.commit()
     con.close()
 
 
 def get_session(session_id):
     """
-        Gets information (start time, end time, and duration about the current session by session_id.
+        Gets information (start time, end time, and duration about the current session
+        by session_id.
 
         @param session_id The ID of the current bot session.
     """
     con = sqlite3.connect(DB_FILE)
     c = con.cursor()
-    c.execute("select id, start, end, strftime('%s', end) - strftime('%s', start) as duration from session where id=?",
-              (session_id, ))
+    c.execute("select id, start, end, strftime('%s', end) - strftime('%s', start) as duration "
+              "from session where id=?",
+              (session_id,))
     result = c.fetchone()
     c.close()
     con.close()
@@ -369,7 +385,7 @@ def set_bday(user_id, bday):
     c = con.cursor()
     c.execute("update user set bday = ? where id = ?", (bday, user_id))
     con.commit()
-    c.execute("select username, firstname, telegram_id from user where id = ?", (user_id, ))
+    c.execute("select username, firstname, telegram_id from user where id = ?", (user_id,))
     result = c.fetchone()
     c.close()
     con.close()
@@ -385,8 +401,9 @@ def add_user(user):
     global KNOWN_USERS
     con = sqlite3.connect(DB_FILE)
     c = con.cursor()
-    c.execute("insert into user (username, firstname, lastname, telegram_id, added, beg, admin) values "
-              "(?, ?, ?, ?, datetime('now'), 0, 0)", (user.username, user.first_name, user.last_name, user.id))
+    c.execute("insert into user (username, firstname, lastname, telegram_id, added, beg, admin)"
+              " values (?, ?, ?, ?, datetime('now'), 0, 0)",
+              (user.username, user.first_name, user.last_name, user.id))
     con.commit()
     c.close()
     con.close()
@@ -395,14 +412,15 @@ def add_user(user):
 
 def get_user_by_id(user_id):
     """
-        Returns information (username, first name, last name, telegram id)) about a user identified by his
-        user_id (not telegram id!).
+        Returns information (username, first name, last name, telegram id)) about a user
+        identified by his user_id (not telegram id!).
 
         @param user_id The user id as it is in the database.
     """
     con = sqlite3.connect(DB_FILE)
     c = con.cursor()
-    c.execute("select username, firstname, lastname, telegram_id from user where id=?", (user_id, ))
+    c.execute("select username, firstname, lastname, telegram_id from user where id=?",
+              (user_id,))
     result = c.fetchone()
     c.close()
     con.close()
@@ -442,7 +460,7 @@ def add_user_to_beg(user_id):
         @param user_id The user id as it is in the database.
     """
     con = sqlite3.connect(DB_FILE)
-    con.execute("update user set beg = 1 where id=?", (user_id, ))
+    con.execute("update user set beg = 1 where id=?", (user_id,))
     con.commit()
     con.close()
 
@@ -455,8 +473,8 @@ def is_admin(telegram_id):
     """
     con = sqlite3.connect(DB_FILE)
     c = con.cursor()
-    c.execute("select count(id) from user where admin=1 and telegram_id=?", (telegram_id, ))
-    (result, ) = c.fetchone()
+    c.execute("select count(id) from user where admin=1 and telegram_id=?", (telegram_id,))
+    (result,) = c.fetchone()
     c.close()
     con.close()
     return result
@@ -470,8 +488,8 @@ def is_beg(telegram_id):
     """
     con = sqlite3.connect(DB_FILE)
     c = con.cursor()
-    c.execute("select count(id) from user where beg=1 and telegram_id=?", (telegram_id, ))
-    (result, ) = c.fetchone()
+    c.execute("select count(id) from user where beg=1 and telegram_id=?", (telegram_id,))
+    (result,) = c.fetchone()
     c.close()
     con.close()
     return result
@@ -479,8 +497,8 @@ def is_beg(telegram_id):
 
 def check_for_birthdays():
     """
-        Checks if one or more of the bouncing egg members have a birthday today and returns a list of strings
-        corresponding to birthday wishes for each user with a birthday today.
+        Checks if one or more of the bouncing egg members have a birthday today and returns a
+        list of strings corresponding to birthday wishes for each user with a birthday today.
     """
     con = sqlite3.connect(DB_FILE)
     c = con.cursor()
@@ -500,12 +518,14 @@ def check_for_birthdays():
                     today = (today.month, today.day)
                     bday = (bday[1], bday[2])
                     if today == bday:
-                        msg = "{}  {}  {}  Happy Birthday, {}!  {}  {}  {}".format(emoji_party_cone, emoji_sparkle,
-                                                                                   emoji_balloon, r[1], emoji_balloon,
-                                                                                   emoji_cake, emoji_present)
+                        msg = "{}  {}  {}  Happy Birthday, {}!  {}  {}  {}" \
+                            .format(EMOJI_PARTY_CONE, EMOJI_SPARKLE,
+                                    EMOJI_BALLOON, r[1], EMOJI_BALLOON,
+                                    EMOJI_CAKE, EMOJI_PRESENT)
                         msgs.append(msg)
                 except ValueError:
-                    print("Encountered malformed birthday for user id {}, please check and correct.".format(r[0]))
+                    print("Encountered malformed birthday for user id {}, "
+                          "please check and correct.".format(r[0]))
     return msgs
 
 
@@ -515,16 +535,17 @@ def get_steam_status():
         resembling the currently online users in steam, or None if the request failed.
     """
     states = {
-        0:  "Offline",
-        1:  "Online",
-        2:  "Busy",
-        3:  "Away",
-        4:  "Snooze",
-        5:  "Looking to Trade",
-        6:  "Looking to Play"
+        0: "Offline",
+        1: "Online",
+        2: "Busy",
+        3: "Away",
+        4: "Snooze",
+        5: "Looking to Trade",
+        6: "Looking to Play"
     }
 
-    site = urllib.request.urlopen("http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={}&steamids={}"
+    site = urllib.request.urlopen("http://api.steampowered.com/ISteamUser/"
+                                  "GetPlayerSummaries/v0002/?key={}&steamids={}"
                                   .format(STEAM_API_KEY, ",".join(STEAM_IDS)))
     content = site.read()
     try:
@@ -535,26 +556,27 @@ def get_steam_status():
                 pstate = states[p["personastate"]]
                 if "gameid" in p:
                     pstate = "{} / InGame".format(pstate)
-                pinfo.append("{} {} {}".format(p["personaname"], emoji_squiggly_line, pstate))
+                pinfo.append("{} {} {}".format(p["personaname"], EMOJI_SQUIGGLY_LINE, pstate))
         if len(pinfo) > 0:
-            return "{}{} Steam {}{}\n{} {}".format(emoji_thick_dash, emoji_thick_dash, emoji_thick_dash,
-                                                   emoji_thick_dash, emoji_orange_rhombus,
-                                                   "\n{} ".format(emoji_orange_rhombus).join(pinfo))
+            return "{}{} Steam {}{}\n{} {}" \
+                .format(EMOJI_THICK_DASH, EMOJI_THICK_DASH, EMOJI_THICK_DASH, EMOJI_THICK_DASH,
+                        EMOJI_ORANGE_RHOMBUS, "\n{} ".format(EMOJI_ORANGE_RHOMBUS).join(pinfo))
         else:
-            return "{}{} Steam {}{}\nThere's nobody online {}".format(emoji_thick_dash, emoji_thick_dash,
-                                                                      emoji_thick_dash, emoji_thick_dash, emoji_sad)
+            return "{}{} Steam {}{}\nThere's nobody online {}" \
+                .format(EMOJI_THICK_DASH, EMOJI_THICK_DASH, EMOJI_THICK_DASH,
+                        EMOJI_THICK_DASH, EMOJI_SAD)
 
     except ValueError:
         print("Error: Steam API sent empty response.")
 
-    return "{}{} Steam {}{}\nThe Steam API sent nothing {}".format(emoji_thick_dash, emoji_thick_dash,
-                                                                   emoji_thick_dash, emoji_thick_dash, emoji_sad)
+    return "{}{} Steam {}{}\nThe Steam API sent nothing {}" \
+        .format(EMOJI_THICK_DASH, EMOJI_THICK_DASH, EMOJI_THICK_DASH, EMOJI_THICK_DASH, EMOJI_SAD)
 
 
 def get_ts3_status():
     """
-        Connects to the Teamspeak 3 server as defined in the configuration file and returns a string
-        resembling the currently online users.
+        Connects to the Teamspeak 3 server as defined in the configuration file and returns
+        a string resembling the currently online users.
     """
     ts3con = ts3.query.TS3Connection(TS3_SRV)
 
@@ -572,9 +594,9 @@ def get_ts3_status():
                 clients.append((client["client_nickname"], client["cid"]))
 
         if len(clients) == 0:
-            return "{}{} TeamSpeak 3 {}{}\n There's nobody online {}".format(emoji_thick_dash, emoji_thick_dash,
-                                                                             emoji_thick_dash, emoji_thick_dash,
-                                                                             emoji_sad)
+            return "{}{} TeamSpeak 3 {}{}\n There's nobody online {}" \
+                .format(EMOJI_THICK_DASH, EMOJI_THICK_DASH, EMOJI_THICK_DASH,
+                        EMOJI_THICK_DASH, EMOJI_SAD)
 
         resp = ts3con.channellist()
         for channel in resp.parsed:
@@ -588,21 +610,23 @@ def get_ts3_status():
         for c in channels:
             clientlines = []
             for client in range(0, len(channels[c]["clients"])):
-                if client == len(channels[c]["clients"])-1:
-                    clientlines.append(" {} {} {}".format(emoji_crossing_l, emoji_blue_ball,
+                if client == len(channels[c]["clients"]) - 1:
+                    clientlines.append(" {} {} {}".format(EMOJI_CROSSING_L, EMOJI_BLUE_BALL,
                                                           channels[c]["clients"][client]))
                 else:
-                    clientlines.append(" {} {} {}".format(emoji_crossing_t, emoji_blue_ball,
+                    clientlines.append(" {} {} {}".format(EMOJI_CROSSING_T, EMOJI_BLUE_BALL,
                                                           channels[c]["clients"][client]))
 
-            entries.append("{} {}\n{}".format(emoji_speech_bubble, channels[c]["name"], "\n".join(clientlines)))
+            entries.append("{} {}\n{}".format(EMOJI_SPEECH_BUBBLE, channels[c]["name"],
+                                              "\n".join(clientlines)))
 
-        return "{}{} TeamSpeak 3 {}{}\n{}".format(emoji_thick_dash, emoji_thick_dash, emoji_thick_dash,
-                                                  emoji_thick_dash, "\n".join(entries))
+        return "{}{} TeamSpeak 3 {}{}\n{}" \
+            .format(EMOJI_THICK_DASH, EMOJI_THICK_DASH, EMOJI_THICK_DASH,
+                    EMOJI_THICK_DASH, "\n".join(entries))
 
     except ts3.query.TS3QueryError as err:
         print("TS3 query failed:", err.resp.error["msg"])
-        return "{} TS3 Error {}".format(emoji_bang, emoji_bang)
+        return "{} TS3 Error {}".format(EMOJI_BANG, EMOJI_BANG)
 
 
 if __name__ == "__main__":
