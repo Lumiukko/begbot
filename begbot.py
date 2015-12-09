@@ -10,8 +10,10 @@ import sqlite3
 import json
 import random
 import urllib.request
+import urllib.error
 
 # Global Variables
+ERROR_TIMEOUT = 3
 LAST_UPDATE_ID = 0
 SESSION_ID = -1
 KNOWN_USERS = {}
@@ -224,11 +226,17 @@ def loop(bot):
 
             LAST_UPDATE_ID = u.update_id + 1
     except telegram.TelegramError as err:
-        print("Telegram Error, sleeping 10s and trying again: {}".format(err))
-        time.sleep(10)
+        print("{}  Telegram Error, sleeping {}s and trying again: {}"
+              .format(datetime.datetime.now(), ERROR_TIMEOUT, err))
+        time.sleep(ERROR_TIMEOUT)
     except ValueError as err:
-        print("Value Error, sleeping 10s and trying again: {}".format(err))
-        time.sleep(10)
+        print("{}  Value Error, sleeping {}s and trying again: {}"
+              .format(datetime.datetime.now(), ERROR_TIMEOUT, err))
+        time.sleep(ERROR_TIMEOUT)
+    except urllib.error.URLError as err:
+        print("{}  URL Error, sleeping {}s and trying again: {}"
+              .format(datetime.datetime.now(), ERROR_TIMEOUT, err))
+        time.sleep(ERROR_TIMEOUT)
 
 
 def archive(update):
