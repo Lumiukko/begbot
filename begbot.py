@@ -345,9 +345,7 @@ def load_config():
     SESSION_ID = c.lastrowid
     con.commit()
     c.execute("select telegram_id from user")
-    for (u,) in c.fetchall():
-        KNOWN_USERS[u] = 1
-    print(KNOWN_USERS)
+    KNOWN_USERS = {u for (u,) in c.fetchall()}
     c.close()
     con.close()
 
@@ -417,7 +415,7 @@ def add_user(user):
     con.commit()
     c.close()
     con.close()
-    KNOWN_USERS[user.id] = 1
+    KNOWN_USERS.add(user.id)
 
 
 def get_user_by_id(user_id):
