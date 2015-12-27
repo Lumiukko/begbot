@@ -345,7 +345,9 @@ def load_config():
     SESSION_ID = c.lastrowid
     con.commit()
     c.execute("select telegram_id from user")
-    KNOWN_USERS = {u for (u,) in c.fetchall()}
+    for (u,) in c.fetchall():
+        KNOWN_USERS[u] = 1
+    print(KNOWN_USERS)
     c.close()
     con.close()
 
