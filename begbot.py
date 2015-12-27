@@ -8,7 +8,6 @@ import datetime
 import os
 import sqlite3
 import json
-import random
 import urllib.request
 import urllib.error
 
@@ -111,11 +110,6 @@ def loop(bot):
                 add_user(u.message.from_user)
 
             # print("Received Message from {}: {}".format(sender, message_text))
-
-            with open("mlog", "a", encoding="utf-8") as f:
-                f.write(message_text.decode("utf-8"))
-                f.write("\n")
-            f.close()
 
             # Public string matching
             response = match_text(message_text)
@@ -277,20 +271,6 @@ def match_text(text):
             return "{} Warning: Non-GIFV GIF detected! You don't want to download" \
                    " {:.2f}MB, do you? Here's the proper link: {} {}" \
                 .format(EMOJI_WARNING, sitesize, EMOJI_EARTH_AFRICAEUROPE, newsite)
-
-    # That's what she said matching... simplex, change later into a more sophisticated matching...
-    twss = b"\xef\xbb\xbf \xcd\xa1\xc2\xb0 \xcd\x9c\xca\x96 \xcd\xa1\xc2\xb0".decode("utf-8")
-    twss = "That's what she said ({})".format(twss)
-    wordbag = "zu aber riesig passt gross groß wow lang ui eng klein nie"
-    wordbag = wordbag.split()
-    textbag = text.split()
-    hits = 0
-    for w in wordbag:
-        if w in textbag:
-            hits += 1
-    threshold = random.randint(3, 3 + int(len(textbag) / 2))
-    if hits >= threshold:
-        return twss
 
     # If nothing has been matched until this point, just return None.
     return None
