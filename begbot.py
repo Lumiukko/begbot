@@ -14,7 +14,7 @@ import pymysql
 import copy
 
 # Global Variable Dictionaries for Configuration, Emoji, and Messages.
-CONFIG = {"VERSION": "0.03; 28.12.2015"}
+CONFIG = {"VERSION": "0.031; 28.12.2015"}
 EMOJI = {}
 MSGS = {}
 
@@ -90,7 +90,6 @@ def loop(bot):
             # Maybe check if u.message.chat.type == "private" or "group", if necessary.
             if message_text == b"/ts3":
                 if is_beg(sender):
-                    get_ts3_status()
                     ts3status = get_ts3_status()
                     bot.sendMessage(chat_id=u.message.chat_id, text=ts3status)
                 else:
@@ -99,7 +98,6 @@ def loop(bot):
 
             if message_text == b"/steam":
                 if is_beg(sender):
-                    get_ts3_status()
                     steamstats = get_steam_status()
                     bot.sendMessage(chat_id=u.message.chat_id, text=steamstats)
                 else:
@@ -108,9 +106,8 @@ def loop(bot):
 
             if message_text == b"/version":
                 if is_beg(sender):
-                    get_ts3_status()
-                    steamstats = get_steam_status()
-                    bot.sendMessage(chat_id=u.message.chat_id, text=steamstats)
+                    bot.sendMessage(chat_id=u.message.chat_id,
+                                    text="BEGBot - Current Version: {}".format(CONFIG["VERSION"]))
                 else:
                     bot.sendMessage(chat_id=u.message.chat_id,
                                     text=MSGS["ONLY_FOR_BEG"])
