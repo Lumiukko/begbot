@@ -45,6 +45,10 @@ Here is an example of the `config.json` file:
     first person steam id,
     second person steam id,
     ...
-  ]
+  ],
+  "mysql_srv": "mysql host",
+  "mysql_usr": "mysql user name",
+  "mysql_pwd": "mysql password",
+  "mysql_db": "mysql database name"
 }
 ```
