@@ -62,3 +62,4 @@ target/
 # BEGBot Config and DB
 config.json
 *.db
+files/*

@@ -11,9 +11,10 @@ import json
 import urllib.request
 import urllib.error
 import pymysql
+import copy
 
 # Global Variable Dictionaries for Configuration, Emoji, and Messages.
-CONFIG = {"VERSION": "0.024; 28.12.2015"}
+CONFIG = {"VERSION": "0.03; 28.12.2015"}
 EMOJI = {}
 MSGS = {}
 
@@ -70,7 +71,7 @@ def loop(bot):
     # Receiving and processing updates.
     try:
         for u in bot.getUpdates(offset=CONFIG["LAST_UPDATE_ID"], timeout=6):
-            archive(u)
+            archive(u, bot)
 
             message_text = u.message.text.encode('utf-8')
             sender = u.message.from_user.id
@@ -94,8 +95,7 @@ def loop(bot):
                     bot.sendMessage(chat_id=u.message.chat_id, text=ts3status)
                 else:
                     bot.sendMessage(chat_id=u.message.chat_id,
-                                    text="{} Sorry, only for Bouncing Egg members."
-                                    .format(EMOJI["BANG"]))
+                                    text=MSGS["ONLY_FOR_BEG"])
 
             if message_text == b"/steam":
                 if is_beg(sender):
@@ -104,8 +104,16 @@ def loop(bot):
                     bot.sendMessage(chat_id=u.message.chat_id, text=steamstats)
                 else:
                     bot.sendMessage(chat_id=u.message.chat_id,
-                                    text="{} Sorry, only for Bouncing Egg members."
-                                    .format(EMOJI["BANG"]))
+                                    text=MSGS["ONLY_FOR_BEG"])
+
+            if message_text == b"/version":
+                if is_beg(sender):
+                    get_ts3_status()
+                    steamstats = get_steam_status()
+                    bot.sendMessage(chat_id=u.message.chat_id, text=steamstats)
+                else:
+                    bot.sendMessage(chat_id=u.message.chat_id,
+                                    text=MSGS["ONLY_FOR_BEG"])
 
             # Admin only commands
             if message_text == b"/session":
@@ -202,11 +210,12 @@ def loop(bot):
         time.sleep(CONFIG["ERROR_TIMEOUT"])
 
 
-def archive(update):
+def archive(update, bot):
     """
-        Archives/persists the received update into the database.
+    Archives/persists the received update into the database.
 
-        @param update The update as defined by the telegram module.
+    @param update: The update as defined by the telegram module.
+    @param bot: The Telegram bot instance.
     """
     if update.message.chat.type == "group":
         # Persist into local SQLite3 database.
@@ -228,14 +237,62 @@ def archive(update):
                                         charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
             try:
                 with mysql_con.cursor() as mysql_c:
+                    # Copy update object and encode message text to UTF-8
+                    update_copy = copy.deepcopy(update)
+                    update_copy.message.text = update.message.text.encode("utf-8")
                     mysql_c.execute("insert into message (session_id, telegram_id, message_id, update_id, group_id,"
                                     " content, received) values (%s, %s, %s, %s, %s, %s, NOW());",
                                     (CONFIG["SESSION_ID"], user.id, update.message.message_id, update.update_id,
-                                     update.message.chat.id, str(update)))
+                                     update.message.chat.id, str(update_copy)))
             finally:
                 mysql_con.close()
 
-        # TODO: Download and store attached files.
+        if update.message.sticker is not None:
+            download_file(update.message.sticker.file_id, bot, ftype="sticker")
+            download_file(update.message.sticker.thumb.file_id, bot, ftype="sticker_thumb")
+        elif update.message.document is not None:
+            download_file(update.message.document.file_id, bot, ftype=str(update.message.document.mime_type))
+            if update.message.document.thumb is not None:
+                download_file(update.message.document.thumb.file_id, bot, ftype="document_thumb")
+        elif update.message.voice is not None:
+            download_file(update.message.voice.file_id, bot, ftype=str(update.message.voice.mime_type))
+        elif update.message.video is not None:
+            download_file(update.message.video.file_id, bot, ftype="video")
+            download_file(update.message.video.thumb.file_id, bot, ftype="video_thumb")
+        elif update.message.photo is not None:
+            for i, p in enumerate(update.message.photo):
+                download_file(p.file_id, bot, ftype="photo_s{}".format(i))
+
+
+def download_file(file_id, bot, ftype=None):
+    """
+    Downloads a file from Telegram and stores it to the file system
+    and a description into the remote MySQL database, if enabled.
+
+    @param file_id: File ID of the file do be downloaded
+    @param bot: The telegram bot instance.
+    @param ftype: File type description.
+    @return: The file path of the downloaded file.
+    """
+    file_path = "{}/{}".format(CONFIG["FILES_DIR"], file_id)
+
+    if not os.path.isfile(file_path):
+        file = bot.getFile(file_id=file_id)
+        file.download(custom_path=str(file_id))
+        os.rename(str(file_id), file_path)
+
+        if REMOTE_ARCHIVE:
+            mysql_con = pymysql.connect(host=CONFIG["MYSQL_SRV"], user=CONFIG["MYSQL_USR"],
+                                        password=CONFIG["MYSQL_PWD"], db=CONFIG["MYSQL_DB"],
+                                        charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
+            try:
+                with mysql_con.cursor() as mysql_c:
+                    mysql_c.execute("insert into file (file_id, type, received) values (%s, %s, NOW());",
+                                    (str(file_id), ftype))
+            finally:
+                mysql_con.close()
+
+    return file_path
 
 
 def match_text(text):
@@ -589,6 +646,9 @@ def load_cfg():
         CONFIG["BEG_ID"] = cfg["group_id"]
         CONFIG["TOKEN"] = cfg["token"]
 
+        # Get file system config entries.
+        CONFIG["FILES_DIR"] = cfg["files_dir"]
+
         # Get TeamSpeak3 config entries.
         CONFIG["TS3_USR"] = cfg["ts3_usr"]
         CONFIG["TS3_PWD"] = cfg["ts3_pwd"]
@@ -662,6 +722,7 @@ def init_emoji():
 def init_msgs():
     global MSGS
     MSGS["ONLY_FOR_ADMINS"] = "{} Sorry, only for bot administrators.".format(EMOJI["BANG"])
+    MSGS["ONLY_FOR_BEG"] = "{} Sorry, only for Bouncing Egg members.".format(EMOJI["BANG"])
 
 
 if __name__ == "__main__":
