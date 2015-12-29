@@ -14,7 +14,7 @@ import pymysql
 import copy
 
 # Global Variable Dictionaries for Configuration, Emoji, and Messages.
-CONFIG = {"VERSION": "0.032; 28.12.2015"}
+CONFIG = {"VERSION": "0.032; 29.12.2015"}
 EMOJI = {}
 MSGS = {}
 
