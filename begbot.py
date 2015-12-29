@@ -14,7 +14,7 @@ import pymysql
 import copy
 
 # Global Variable Dictionaries for Configuration, Emoji, and Messages.
-CONFIG = {"VERSION": "0.031; 28.12.2015"}
+CONFIG = {"VERSION": "0.032; 28.12.2015"}
 EMOJI = {}
 MSGS = {}
 
@@ -33,6 +33,7 @@ def main():
 
     bot = telegram.Bot(token=CONFIG["TOKEN"])
     bot_info = bot.getMe()
+    CONFIG["BOTINFO"] = bot_info
     started = datetime.datetime.now()
 
     try:
@@ -73,6 +74,7 @@ def loop(bot):
         for u in bot.getUpdates(offset=CONFIG["LAST_UPDATE_ID"], timeout=6):
             archive(u, bot)
 
+            # UTF-8 Encoded message text
             message_text = u.message.text.encode('utf-8')
             sender = u.message.from_user.id
 
@@ -88,7 +90,7 @@ def loop(bot):
 
             # BEG only commands
             # Maybe check if u.message.chat.type == "private" or "group", if necessary.
-            if message_text == b"/ts3":
+            if u.message.text == "/ts3" or u.message.text == "/ts3{}".format(CONFIG["BOTINFO"].name):
                 if is_beg(sender):
                     ts3status = get_ts3_status()
                     bot.sendMessage(chat_id=u.message.chat_id, text=ts3status)
@@ -96,7 +98,7 @@ def loop(bot):
                     bot.sendMessage(chat_id=u.message.chat_id,
                                     text=MSGS["ONLY_FOR_BEG"])
 
-            if message_text == b"/steam":
+            if u.message.text == "/steam" or u.message.text == "/steam{}".format(CONFIG["BOTINFO"].name):
                 if is_beg(sender):
                     steamstats = get_steam_status()
                     bot.sendMessage(chat_id=u.message.chat_id, text=steamstats)
@@ -104,7 +106,7 @@ def loop(bot):
                     bot.sendMessage(chat_id=u.message.chat_id,
                                     text=MSGS["ONLY_FOR_BEG"])
 
-            if message_text == b"/version":
+            if u.message.text == "/version" or u.message.text == "/version{}".format(CONFIG["BOTINFO"].name):
                 if is_beg(sender):
                     bot.sendMessage(chat_id=u.message.chat_id,
                                     text="BEGBot - Current Version: {}".format(CONFIG["VERSION"]))
@@ -113,7 +115,7 @@ def loop(bot):
                                     text=MSGS["ONLY_FOR_BEG"])
 
             # Admin only commands
-            if message_text == b"/session":
+            if u.message.text == "/session" or u.message.text == "/session{}".format(CONFIG["BOTINFO"].name):
                 if is_admin(sender):
                     (s_id, s_start, s_end, s_duration) = get_session(CONFIG["SESSION_ID"])
                     bot.sendMessage(chat_id=u.message.chat_id,
@@ -122,14 +124,14 @@ def loop(bot):
                 else:
                     bot.sendMessage(chat_id=u.message.chat_id, text=MSGS["ONLY_FOR_ADMINS"])
 
-            if message_text == b"/listusers":
+            if u.message.text == "/listusers" or u.message.text == "/listusers{}".format(CONFIG["BOTINFO"].name):
                 if is_admin(sender):
                     users = "\n".join([str(u) for u in get_all_users()])
                     bot.sendMessage(chat_id=u.message.chat_id, text="Users:\n{}".format(users))
                 else:
                     bot.sendMessage(chat_id=u.message.chat_id, text=MSGS["ONLY_FOR_ADMINS"])
 
-            if message_text == b"/listnonbeg":
+            if u.message.text == "/listnonbeg" or u.message.text == "/listnonbeg{}".format(CONFIG["BOTINFO"].name):
                 if is_admin(sender):
                     nonbeg = "\n".join([str(u) for u in get_non_beg_users()])
                     bot.sendMessage(chat_id=u.message.chat_id,
@@ -137,7 +139,7 @@ def loop(bot):
                 else:
                     bot.sendMessage(chat_id=u.message.chat_id, text=MSGS["ONLY_FOR_ADMINS"])
 
-            if message_text.startswith(b"/setbday "):
+            if u.message.text.startswith("/setbday ") or u.message.text.startswith("/setbday{} ".format(CONFIG["BOTINFO"].name)):
                 if is_admin(sender):
                     params = message_text[9:].split()
                     if len(params) != 2:
@@ -170,7 +172,7 @@ def loop(bot):
                                             text="{} Error. Malformed user ID."
                                             .format(EMOJI["BANG"]))
 
-            if message_text.startswith(b"/addbeg "):
+            if u.message.text.startswith("/addbeg ") or u.message.text.startswith("/addbeg{} ".format(CONFIG["BOTINFO"].name)):
                 if is_admin(sender):
                     try:
                         uid = int(message_text[8:])
