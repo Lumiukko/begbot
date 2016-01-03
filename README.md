@@ -11,7 +11,8 @@ For an introduction for bot creation and usage see: https://core.telegram.org/bo
 This bot was implemented using Python >= 3.4. Besides several standard libraries, the following packages are required:
 
 * `python-telegram-bot` - https://github.com/leandrotoledo/python-telegram-bot/
-* `py-ts3` - https://github.com/benediktschmitt/py-ts3
+* `ts3` - https://github.com/benediktschmitt/py-ts3
+* `pymysql` - https://github.com/PyMySQL/PyMySQL
 
 ## Features
 
@@ -22,7 +23,8 @@ This bot was implemented using Python >= 3.4. Besides several standard libraries
 * Admins can use the `/setbday <UID> <BDAY>` command to set the birth data of a user, where `<UID>` is the corresponding user id in the database and `<BDAY>` is the birth date of that user in the format `YYYY-MM-DD`.
 * The bot checks every day at 9:00 if any of the users with the set beg flag has birthday and posts birthday wishes to the chat accordingly.
 * If someone links a GIF from Imgur, which does not have the .gifv ending (i.e. WEBM converted GIF for saving bandwidth), the bot will post the corresponding GIFV link and mention how large the GIF file would have been to download in megabytes.
-* The bot archives every update in JSON format into the database for future features, e.g. an archive function.
+* The bot archives every update in JSON format into the database and downloads files (stickers, pictures, videos, documents, voice files) into a pre-defined folder a for future features, e.g. an archive function.
+* Optionally the bot archives the messages into a remote MySQL database.
 
 ## Configuration
 
@@ -49,6 +51,7 @@ Here is an example of the `config.json` file:
   "mysql_srv": "mysql host",
   "mysql_usr": "mysql user name",
   "mysql_pwd": "mysql password",
-  "mysql_db": "mysql database name"
+  "mysql_db": "mysql database name",
+  "files_dir": "folder for file download"
 }
 ```
