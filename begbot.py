@@ -216,51 +216,55 @@ def archive(update, bot):
     @param update: The update as defined by the telegram module.
     @param bot: The Telegram bot instance.
     """
-    if update.message.chat.type == "group":
-        # Persist into local SQLite3 database.
-        user = update.message.from_user
-        con = sqlite3.connect(CONFIG["DB_FILE"])
-        c = con.cursor()
-        c.execute("insert into message (session_id, telegram_id, message_id, update_id, group_id,"
-                  " content, received) values (?, ?, ?, ?, ?, ?, datetime('now'))",
-                  (CONFIG["SESSION_ID"], user.id, update.message.message_id, update.update_id,
-                   update.message.chat.id, str(update)))
-        con.commit()
-        c.close()
-        con.close()
+    if update.message is None:
+        print("Error: message is None ... Update is:")
+        print(update)
+    else:
+        if update.message.chat.type == "group":
+            # Persist into local SQLite3 database.
+            user = update.message.from_user
+            con = sqlite3.connect(CONFIG["DB_FILE"])
+            c = con.cursor()
+            c.execute("insert into message (session_id, telegram_id, message_id, update_id, group_id,"
+                      " content, received) values (?, ?, ?, ?, ?, ?, datetime('now'))",
+                      (CONFIG["SESSION_ID"], user.id, update.message.message_id, update.update_id,
+                       update.message.chat.id, str(update)))
+            con.commit()
+            c.close()
+            con.close()
 
-        # Persist into remote MySQL database, if enabled.
-        if REMOTE_ARCHIVE:
-            mysql_con = pymysql.connect(host=CONFIG["MYSQL_SRV"], user=CONFIG["MYSQL_USR"],
-                                        password=CONFIG["MYSQL_PWD"], db=CONFIG["MYSQL_DB"],
-                                        charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
-            try:
-                with mysql_con.cursor() as mysql_c:
-                    # Copy update object and encode message text to UTF-8
-                    update_copy = copy.deepcopy(update)
-                    update_copy.message.text = update.message.text.encode("utf-8")
-                    mysql_c.execute("insert into message (session_id, telegram_id, message_id, update_id, group_id,"
-                                    " content, received) values (%s, %s, %s, %s, %s, %s, NOW());",
-                                    (CONFIG["SESSION_ID"], user.id, update.message.message_id, update.update_id,
-                                     update.message.chat.id, str(update_copy)))
-            finally:
-                mysql_con.close()
+            # Persist into remote MySQL database, if enabled.
+            if REMOTE_ARCHIVE:
+                mysql_con = pymysql.connect(host=CONFIG["MYSQL_SRV"], user=CONFIG["MYSQL_USR"],
+                                            password=CONFIG["MYSQL_PWD"], db=CONFIG["MYSQL_DB"],
+                                            charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
+                try:
+                    with mysql_con.cursor() as mysql_c:
+                        # Copy update object and encode message text to UTF-8
+                        update_copy = copy.deepcopy(update)
+                        update_copy.message.text = update.message.text.encode("utf-8")
+                        mysql_c.execute("insert into message (session_id, telegram_id, message_id, update_id, group_id,"
+                                        " content, received) values (%s, %s, %s, %s, %s, %s, NOW());",
+                                        (CONFIG["SESSION_ID"], user.id, update.message.message_id, update.update_id,
+                                         update.message.chat.id, str(update_copy)))
+                finally:
+                    mysql_con.close()
 
-        if update.message.sticker is not None:
-            download_file(update.message.sticker.file_id, bot, ftype="sticker")
-            download_file(update.message.sticker.thumb.file_id, bot, ftype="sticker_thumb")
-        elif update.message.document is not None:
-            download_file(update.message.document.file_id, bot, ftype=str(update.message.document.mime_type))
-            if update.message.document.thumb is not None:
-                download_file(update.message.document.thumb.file_id, bot, ftype="document_thumb")
-        elif update.message.voice is not None:
-            download_file(update.message.voice.file_id, bot, ftype=str(update.message.voice.mime_type))
-        elif update.message.video is not None:
-            download_file(update.message.video.file_id, bot, ftype="video")
-            download_file(update.message.video.thumb.file_id, bot, ftype="video_thumb")
-        elif update.message.photo is not None:
-            for i, p in enumerate(update.message.photo):
-                download_file(p.file_id, bot, ftype="photo_s{}".format(i))
+            if update.message.sticker is not None:
+                download_file(update.message.sticker.file_id, bot, ftype="sticker")
+                download_file(update.message.sticker.thumb.file_id, bot, ftype="sticker_thumb")
+            elif update.message.document is not None:
+                download_file(update.message.document.file_id, bot, ftype=str(update.message.document.mime_type))
+                if update.message.document.thumb is not None:
+                    download_file(update.message.document.thumb.file_id, bot, ftype="document_thumb")
+            elif update.message.voice is not None:
+                download_file(update.message.voice.file_id, bot, ftype=str(update.message.voice.mime_type))
+            elif update.message.video is not None:
+                download_file(update.message.video.file_id, bot, ftype="video")
+                download_file(update.message.video.thumb.file_id, bot, ftype="video_thumb")
+            elif update.message.photo is not None:
+                for i, p in enumerate(update.message.photo):
+                    download_file(p.file_id, bot, ftype="photo_s{}".format(i))
 
 
 def download_file(file_id, bot, ftype=None):
