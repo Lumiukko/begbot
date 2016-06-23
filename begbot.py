@@ -75,124 +75,125 @@ def loop(bot):
             archive(u, bot)
 
             # UTF-8 Encoded message text
-            message_text = u.message.text.encode('utf-8')
-            sender = u.message.from_user.id
+            if u.message is not None:
+                message_text = u.message.text.encode('utf-8')
+                sender = u.message.from_user.id
 
-            if sender not in CONFIG["KNOWN_USERS"]:
-                add_user(u.message.from_user)
+                if sender not in CONFIG["KNOWN_USERS"]:
+                    add_user(u.message.from_user)
 
-            # print("Received Message from {}: {}".format(sender, message_text))
+                # print("Received Message from {}: {}".format(sender, message_text))
 
-            # Public string matching
-            response = match_text(message_text)
-            if response is not None:
-                bot.sendMessage(chat_id=u.message.chat_id, text=response)
+                # Public string matching
+                response = match_text(message_text)
+                if response is not None:
+                    bot.sendMessage(chat_id=u.message.chat_id, text=response)
 
-            # BEG only commands
-            # Maybe check if u.message.chat.type == "private" or "group", if necessary.
-            if u.message.text == "/ts3" or u.message.text == "/ts3{}".format(CONFIG["BOTINFO"].name):
-                if is_beg(sender):
-                    ts3status = get_ts3_status()
-                    bot.sendMessage(chat_id=u.message.chat_id, text=ts3status)
-                else:
-                    bot.sendMessage(chat_id=u.message.chat_id,
-                                    text=MSGS["ONLY_FOR_BEG"])
-
-            if u.message.text == "/steam" or u.message.text == "/steam{}".format(CONFIG["BOTINFO"].name):
-                if is_beg(sender):
-                    steamstats = get_steam_status()
-                    bot.sendMessage(chat_id=u.message.chat_id, text=steamstats)
-                else:
-                    bot.sendMessage(chat_id=u.message.chat_id,
-                                    text=MSGS["ONLY_FOR_BEG"])
-
-            if u.message.text == "/version" or u.message.text == "/version{}".format(CONFIG["BOTINFO"].name):
-                if is_beg(sender):
-                    bot.sendMessage(chat_id=u.message.chat_id,
-                                    text="BEGBot - Current Version: {}".format(CONFIG["VERSION"]))
-                else:
-                    bot.sendMessage(chat_id=u.message.chat_id,
-                                    text=MSGS["ONLY_FOR_BEG"])
-
-            # Admin only commands
-            if u.message.text == "/session" or u.message.text == "/session{}".format(CONFIG["BOTINFO"].name):
-                if is_admin(sender):
-                    (s_id, s_start, s_end, s_duration) = get_session(CONFIG["SESSION_ID"])
-                    bot.sendMessage(chat_id=u.message.chat_id,
-                                    text="Session: id={}, start={}, lastka={}, duration={}s"
-                                    .format(s_id, s_start, s_end, s_duration))
-                else:
-                    bot.sendMessage(chat_id=u.message.chat_id, text=MSGS["ONLY_FOR_ADMINS"])
-
-            if u.message.text == "/listusers" or u.message.text == "/listusers{}".format(CONFIG["BOTINFO"].name):
-                if is_admin(sender):
-                    users = "\n".join([str(u) for u in get_all_users()])
-                    bot.sendMessage(chat_id=u.message.chat_id, text="Users:\n{}".format(users))
-                else:
-                    bot.sendMessage(chat_id=u.message.chat_id, text=MSGS["ONLY_FOR_ADMINS"])
-
-            if u.message.text == "/listnonbeg" or u.message.text == "/listnonbeg{}".format(CONFIG["BOTINFO"].name):
-                if is_admin(sender):
-                    nonbeg = "\n".join([str(u) for u in get_non_beg_users()])
-                    bot.sendMessage(chat_id=u.message.chat_id,
-                                    text="Non-BEG Users:\n{}".format(nonbeg))
-                else:
-                    bot.sendMessage(chat_id=u.message.chat_id, text=MSGS["ONLY_FOR_ADMINS"])
-
-            if u.message.text.startswith("/setbday ") or u.message.text.startswith("/setbday{} ".format(CONFIG["BOTINFO"].name)):
-                if is_admin(sender):
-                    params = message_text[9:].split()
-                    if len(params) != 2:
-                        bot.sendMessage(chat_id=u.message.chat_id,
-                                        text="{} Error. Wrong parameter count."
-                                        .format(EMOJI["BANG"]))
+                # BEG only commands
+                # Maybe check if u.message.chat.type == "private" or "group", if necessary.
+                if u.message.text == "/ts3" or u.message.text == "/ts3{}".format(CONFIG["BOTINFO"].name):
+                    if is_beg(sender):
+                        ts3status = get_ts3_status()
+                        bot.sendMessage(chat_id=u.message.chat_id, text=ts3status)
                     else:
-                        try:
-                            uid = int(params[0])
-                            bday = params[1].decode("utf-8")
-                            if len(bday) != 10:
-                                bot.sendMessage(chat_id=u.message.chat_id,
-                                                text="{} Error. Malformed date, expected format:"
-                                                     " \"YYYY-MM-DD\"."
-                                                .format(EMOJI["BANG"]))
-                            else:
-                                result = set_bday(uid, bday)
-                                if result is None:
+                        bot.sendMessage(chat_id=u.message.chat_id,
+                                        text=MSGS["ONLY_FOR_BEG"])
+
+                if u.message.text == "/steam" or u.message.text == "/steam{}".format(CONFIG["BOTINFO"].name):
+                    if is_beg(sender):
+                        steamstats = get_steam_status()
+                        bot.sendMessage(chat_id=u.message.chat_id, text=steamstats)
+                    else:
+                        bot.sendMessage(chat_id=u.message.chat_id,
+                                        text=MSGS["ONLY_FOR_BEG"])
+
+                if u.message.text == "/version" or u.message.text == "/version{}".format(CONFIG["BOTINFO"].name):
+                    if is_beg(sender):
+                        bot.sendMessage(chat_id=u.message.chat_id,
+                                        text="BEGBot - Current Version: {}".format(CONFIG["VERSION"]))
+                    else:
+                        bot.sendMessage(chat_id=u.message.chat_id,
+                                        text=MSGS["ONLY_FOR_BEG"])
+
+                # Admin only commands
+                if u.message.text == "/session" or u.message.text == "/session{}".format(CONFIG["BOTINFO"].name):
+                    if is_admin(sender):
+                        (s_id, s_start, s_end, s_duration) = get_session(CONFIG["SESSION_ID"])
+                        bot.sendMessage(chat_id=u.message.chat_id,
+                                        text="Session: id={}, start={}, lastka={}, duration={}s"
+                                        .format(s_id, s_start, s_end, s_duration))
+                    else:
+                        bot.sendMessage(chat_id=u.message.chat_id, text=MSGS["ONLY_FOR_ADMINS"])
+
+                if u.message.text == "/listusers" or u.message.text == "/listusers{}".format(CONFIG["BOTINFO"].name):
+                    if is_admin(sender):
+                        users = "\n".join([str(u) for u in get_all_users()])
+                        bot.sendMessage(chat_id=u.message.chat_id, text="Users:\n{}".format(users))
+                    else:
+                        bot.sendMessage(chat_id=u.message.chat_id, text=MSGS["ONLY_FOR_ADMINS"])
+
+                if u.message.text == "/listnonbeg" or u.message.text == "/listnonbeg{}".format(CONFIG["BOTINFO"].name):
+                    if is_admin(sender):
+                        nonbeg = "\n".join([str(u) for u in get_non_beg_users()])
+                        bot.sendMessage(chat_id=u.message.chat_id,
+                                        text="Non-BEG Users:\n{}".format(nonbeg))
+                    else:
+                        bot.sendMessage(chat_id=u.message.chat_id, text=MSGS["ONLY_FOR_ADMINS"])
+
+                if u.message.text.startswith("/setbday ") or u.message.text.startswith("/setbday{} ".format(CONFIG["BOTINFO"].name)):
+                    if is_admin(sender):
+                        params = message_text[9:].split()
+                        if len(params) != 2:
+                            bot.sendMessage(chat_id=u.message.chat_id,
+                                            text="{} Error. Wrong parameter count."
+                                            .format(EMOJI["BANG"]))
+                        else:
+                            try:
+                                uid = int(params[0])
+                                bday = params[1].decode("utf-8")
+                                if len(bday) != 10:
                                     bot.sendMessage(chat_id=u.message.chat_id,
-                                                    text="{} Error. Unknown user ID."
+                                                    text="{} Error. Malformed date, expected format:"
+                                                         " \"YYYY-MM-DD\"."
                                                     .format(EMOJI["BANG"]))
                                 else:
-                                    (uname, _, tid) = result
-                                    bot.sendMessage(chat_id=u.message.chat_id,
-                                                    text="Successfully set birthday for"
-                                                         " {} ({}) to {}."
-                                                    .format(uname, tid, bday))
+                                    result = set_bday(uid, bday)
+                                    if result is None:
+                                        bot.sendMessage(chat_id=u.message.chat_id,
+                                                        text="{} Error. Unknown user ID."
+                                                        .format(EMOJI["BANG"]))
+                                    else:
+                                        (uname, _, tid) = result
+                                        bot.sendMessage(chat_id=u.message.chat_id,
+                                                        text="Successfully set birthday for"
+                                                             " {} ({}) to {}."
+                                                        .format(uname, tid, bday))
+                            except ValueError:
+                                bot.sendMessage(chat_id=u.message.chat_id,
+                                                text="{} Error. Malformed user ID."
+                                                .format(EMOJI["BANG"]))
+
+                if u.message.text.startswith("/addbeg ") or u.message.text.startswith("/addbeg{} ".format(CONFIG["BOTINFO"].name)):
+                    if is_admin(sender):
+                        try:
+                            uid = int(message_text[8:])
+                            uinfo = get_user_by_id(uid)
+                            if uinfo is None:
+                                bot.sendMessage(chat_id=u.message.chat_id,
+                                                text="{} Error. Unknown user ID."
+                                                .format(EMOJI["BANG"]))
+                            else:
+                                add_user_to_beg(uid)
+                                bot.sendMessage(chat_id=u.message.chat_id,
+                                                text="{} Successfully added: {} ({}) {} Welcome! {}"
+                                                .format(EMOJI["PARTY_BALL"], uinfo[1], uinfo[3],
+                                                        EMOJI["SPARKLE"], EMOJI["PARTY_CONE"]))
                         except ValueError:
                             bot.sendMessage(chat_id=u.message.chat_id,
                                             text="{} Error. Malformed user ID."
                                             .format(EMOJI["BANG"]))
-
-            if u.message.text.startswith("/addbeg ") or u.message.text.startswith("/addbeg{} ".format(CONFIG["BOTINFO"].name)):
-                if is_admin(sender):
-                    try:
-                        uid = int(message_text[8:])
-                        uinfo = get_user_by_id(uid)
-                        if uinfo is None:
-                            bot.sendMessage(chat_id=u.message.chat_id,
-                                            text="{} Error. Unknown user ID."
-                                            .format(EMOJI["BANG"]))
-                        else:
-                            add_user_to_beg(uid)
-                            bot.sendMessage(chat_id=u.message.chat_id,
-                                            text="{} Successfully added: {} ({}) {} Welcome! {}"
-                                            .format(EMOJI["PARTY_BALL"], uinfo[1], uinfo[3],
-                                                    EMOJI["SPARKLE"], EMOJI["PARTY_CONE"]))
-                    except ValueError:
-                        bot.sendMessage(chat_id=u.message.chat_id,
-                                        text="{} Error. Malformed user ID."
-                                        .format(EMOJI["BANG"]))
-                else:
-                    bot.sendMessage(chat_id=u.message.chat_id, text=MSGS["ONLY_FOR_ADMINS"])
+                    else:
+                        bot.sendMessage(chat_id=u.message.chat_id, text=MSGS["ONLY_FOR_ADMINS"])
 
             CONFIG["LAST_UPDATE_ID"] = u.update_id + 1
     except telegram.TelegramError as err:
@@ -209,6 +210,7 @@ def loop(bot):
         time.sleep(CONFIG["ERROR_TIMEOUT"])
 
 
+
 def archive(update, bot):
     """
     Archives/persists the received update into the database.
@@ -216,7 +218,25 @@ def archive(update, bot):
     @param update: The update as defined by the telegram module.
     @param bot: The Telegram bot instance.
     """
-    if update.message is None:
+    if update.edited_message is not None:
+        print("Someone edited a message..... grrrr.")
+    
+        # Persist into remote MySQL database, if enabled.
+        if REMOTE_ARCHIVE:
+            mysql_con = pymysql.connect(host=CONFIG["MYSQL_SRV"], user=CONFIG["MYSQL_USR"],
+                                        password=CONFIG["MYSQL_PWD"], db=CONFIG["MYSQL_DB"],
+                                        charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor)
+            try:
+                with mysql_con.cursor() as mysql_c:
+                    # Copy update object and encode message text to UTF-8
+                    update_copy = copy.deepcopy(update)
+                    update_copy.edited_message.text = update.edited_message.text.encode("utf-8")
+                    mysql_c.execute("insert into edited_message (message_id, json_obj) values (%s, %s);",
+                                    (update.edited_message.message_id, str(update_copy)))
+            finally:
+                mysql_con.close()
+    
+    elif update.message is None:
         print("Error: message is None ... Update is:")
         print(update)
     else:
