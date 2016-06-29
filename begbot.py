@@ -47,7 +47,7 @@ class BEGBot:
             ts3_connection.login(client_login_name=self.cfg.ts3_usr,
                                  client_login_password=self.cfg.ts3_pwd)
             ts3_connection.use(sid=1)
-            client_list = ts3_connection.clientlist()
+            client_list = ts3_connection.clientlist(away=True, voice=True, country=True)
 
             channels = {}
             clients = []
@@ -55,10 +55,11 @@ class BEGBot:
             for client in client_list.parsed:
                 if not client["client_nickname"].startswith("{} from ".format(self.cfg.ts3_usr)):
                     channels[client["cid"]] = 0
-                    clients.append((client["client_nickname"], client["cid"]))
+                    client_muted = client["client_input_muted"] == "1"
+                    clients.append((client["client_nickname"], client["cid"], client_muted, client["client_country"]))
 
             if len(clients) == 0:
-                response = "{}{} TeamSpeak 3 {}{}\n There's nobody online {}" \
+                response = "{}{} TeamSpeak 3 {}{}\n There's nobody online {}"\
                     .format(Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN,
                             Emoji.HEAVY_MINUS_SIGN, Emoji.WORRIED_FACE)
                 bot.sendMessage(update.message.chat_id, text=response)
@@ -69,19 +70,25 @@ class BEGBot:
                 if channel["cid"] in channels:
                     channels[channel["cid"]] = {"name": channel["channel_name"], "clients": []}
 
-            for (cname, cid) in clients:
-                channels[cid]["clients"].append(cname)
+            for (cname, cid, muted, country) in clients:
+                channels[cid]["clients"].append((cname, muted, country))
 
             entries = []
             for c in channels:
                 clientlines = []
                 for client in range(0, len(channels[c]["clients"])):
+                    (nickname, muted, country) = channels[c]["clients"][client]
+
                     if client == len(channels[c]["clients"]) - 1:
                         prefix = Emoji.BOX_DRAWINGS_LIGHT_UP_AND_RIGHT
                     else:
                         prefix = Emoji.BOX_DRAWINGS_LIGHT_VERTICAL_AND_RIGHT
-                    clientlines.append(" {} {} {}".format(prefix, Emoji.LARGE_BLUE_CIRCLE,
-                                                          channels[c]["clients"][client]))
+                    if muted:
+                        icon = Emoji.SPEAKER_WITH_CANCELLATION_STROKE
+                    else:
+                        icon = Emoji.LARGE_BLUE_CIRCLE
+
+                    clientlines.append(" {} {} {} {}".format(prefix, icon, nickname, Emoji.flag(country)))
 
                 entries.append("{} {}\n{}".format(Emoji.SPEECH_BALLOON, channels[c]["name"],
                                                   "\n".join(clientlines)))
