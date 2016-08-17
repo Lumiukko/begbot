@@ -5,13 +5,14 @@ This is the Bouncing Egg Telegram Bot.
 # from uuid import uuid4
 # from telegram import InlineQueryResultArticle, InputTextMessageContent, ParseMode
 # from telegram.ext import MessageHandler, Filters, InlineQueryHandler
-from telegram.ext import Updater, CommandHandler
+from telegram.ext import Updater, CommandHandler, Job, JobQueue
 import logging
 import os
 import json
 import ts3.query
 from botconfig import BotConfig
 from extended_emoji import ExtendedEmoji as Emoji
+from noneless_formatter import NoneLessFormatter
 import sqlite3
 
 
@@ -33,6 +34,10 @@ class BEGBot:
         # self.dp.add_handler(MessageHandler([Filters.text], self.message))
         self.dp.add_handler(CommandHandler("ts3", self.ts3_info))
         self.dp.add_handler(CommandHandler("session", self.session_info))
+        self.dp.add_handler(CommandHandler("listusers", self.list_users))
+
+        keep_alive_job = Job(self.send_keep_alive, interval=3, repeat=True)
+        self.dp.job_queue.put(keep_alive_job)
 
     def start(self):
         """
@@ -80,6 +85,41 @@ class BEGBot:
         c.close()
         con.close()
         return result
+
+    def list_users(self, bot, update):
+        """
+        Gets user information from the database and lists all known users.
+
+        @param bot: The Telegram bot instance.
+        @param update: The update that triggered the command.
+        """
+        if not self.is_admin(update.message.from_user.id):
+            self.send_message_admin_only(bot, update)
+            return False
+
+        con = sqlite3.connect(self.cfg.db_file)
+        c = con.cursor()
+        c.execute("select id, telegram_id, username, firstname, added, beg, admin from user")
+        result = c.fetchall()
+        c.close()
+        con.close()
+
+        response = ""
+        tpl = ("ID", "TID", "Username", "Name", "Added", "B", "A")
+        response += "|`{:3}`|`{:9}`|`{:15}`|`{:9}`|`{:10}`|`{}`|`{}`|\n"\
+            .replace("|", Emoji.BOX_DRAWINGS_LIGHT_VERTICAL)\
+            .format(tpl[0], tpl[1], tpl[2], tpl[3], tpl[4], tpl[5], tpl[6])
+
+        nlf = NoneLessFormatter()
+        for tpl in result:
+            uname = "~"
+            if tpl[2] != "":
+                uname = tpl[2]
+            response += nlf.format("|`{:3d}`|`{:9d}`|`{:15.15}`|`{:9.9}`|`{:10.10}`|`{}`|`{}`|\n"
+                                   .replace("|", Emoji.BOX_DRAWINGS_LIGHT_VERTICAL),
+                                   tpl[0], tpl[1], uname, tpl[3], tpl[4], tpl[5], tpl[6])
+
+        bot.sendMessage(update.message.chat_id, text=response, parse_mode="Markdown")
 
     def session_info(self, bot, update):
         """
@@ -225,15 +265,16 @@ class BEGBot:
             self.logger.error("Error: Missing field in config.json: {}".format(err))
         return False
 
-    def send_keep_alive(self, session_id):
+    def send_keep_alive(self, bot, job):
         """
             Saves the current time to the database to keep track of the last known working time in
             case the bot crashed.
 
-            @param session_id The ID of the current bot session.
+            @param bot: The Telegram bot instance.
+            @param job: The Job instance for the bots job queue.
         """
         con = sqlite3.connect(self.cfg.db_file)
-        con.execute("update session set end = datetime('now') where id=?", (session_id, ))
+        con.execute("update session set end = datetime('now') where id=?", (self.cfg.session_id, ))
         con.commit()
         con.close()
 

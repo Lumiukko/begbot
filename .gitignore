@@ -63,3 +63,4 @@ target/
 config.json
 *.db
 files/*
+archive_files.py

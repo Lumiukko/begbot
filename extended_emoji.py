@@ -18,6 +18,7 @@ ABC2RIS = dict(zip(ABC, RIS))
 class ExtendedEmoji(Emoji):
     BOX_DRAWINGS_LIGHT_UP_AND_RIGHT = n(b"\xe2\x94\x94")
     BOX_DRAWINGS_LIGHT_VERTICAL_AND_RIGHT = n(b"\xe2\x94\x9c")
+    BOX_DRAWINGS_LIGHT_VERTICAL = n(b"\xe2\x94\x82")
 
     @staticmethod
     def flag(cc):
