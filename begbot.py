@@ -10,6 +10,8 @@ import logging
 import os
 import json
 import ts3.query
+import urllib.request
+import urllib.error
 from botconfig import BotConfig
 from extended_emoji import ExtendedEmoji as Emoji
 from noneless_formatter import NoneLessFormatter
@@ -35,6 +37,7 @@ class BEGBot:
         self.dp.add_handler(CommandHandler("ts3", self.ts3_info))
         self.dp.add_handler(CommandHandler("session", self.session_info))
         self.dp.add_handler(CommandHandler("listusers", self.list_users))
+        self.dp.add_handler(CommandHandler("steam", self.steam_info))
 
         keep_alive_job = Job(self.send_keep_alive, interval=3, repeat=True)
         self.dp.job_queue.put(keep_alive_job)
@@ -146,6 +149,56 @@ class BEGBot:
         bot.sendMessage(update.message.chat_id, text=response)
         return True
 
+    def steam_info(self, bot, update):
+        """
+        Connects to the Steam API and gets information about all SteamIDs set in the configuration.
+
+        @param bot: The Telegram bot instance.
+        @param update: The update that triggered the command.
+        @return: Returns True if it was successful, and False if it was not.
+        """
+        if not self.is_beg(update.message.from_user.id):
+            self.send_message_beg_only(bot, update)
+            return False
+
+        steam_id_string = ",".join(map(str, self.cfg.steam_ids))
+        site = urllib.request.urlopen(self.cfg.steam_api_url.format(self.cfg.steam_api_key, steam_id_string))
+        site_content = site.read()
+        try:
+            data = json.loads(site_content.decode("utf-8"))
+            player_list = []
+            for player in data["response"]["players"]:
+                if player["personastate"] != 0:  # Only show non-offline players.
+                    player_entry = "{} {} {}".format(
+                        player["personaname"],
+                        Emoji.WAVY_DASH,
+                        self.get_steam_status_info(player["personastate"])
+                    )
+                    if "gameid" in player:  # Player is in a game.
+                        player_entry = "{} {} / InGame".format(Emoji.LARGE_ORANGE_DIAMOND, player_entry)
+                    else:
+                        player_entry = "{} {}".format(Emoji.LARGE_BLUE_DIAMOND, player_entry)
+                    player_list.append(player_entry)
+
+            if not player_list:  # All SteamIDs are offline.
+                response = "{}{} Steam {}{}\n There's nobody online {}".format(
+                    Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN,
+                    Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN, Emoji.WORRIED_FACE)
+                bot.sendMessage(update.message.chat_id, text=response)
+                return True
+            else:
+                response = "{}{} Steam {}{}\n{}" .format(
+                    Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN,
+                    Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN,
+                    "\n".join(player_list))
+                bot.sendMessage(update.message.chat_id, text=response)
+                return True
+
+        except ValueError as err:
+            self.logger.error("Steam API connection failed: {}".format(err))
+
+        return False
+
     def ts3_info(self, bot, update):
         """
         Connects to a Teamspeak 3 server, gets client information, and responds with a channel overview.
@@ -176,7 +229,7 @@ class BEGBot:
                     clients.append((client["client_nickname"], client["cid"],
                                     client_muted, client["client_country"]))
 
-            if len(clients) == 0:
+            if not clients:
                 response = "{}{} TeamSpeak 3 {}{}\n There's nobody online {}".format(
                     Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN,
                     Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN, Emoji.WORRIED_FACE)
@@ -277,6 +330,24 @@ class BEGBot:
         con.execute("update session set end = datetime('now') where id=?", (self.cfg.session_id, ))
         con.commit()
         con.close()
+
+    @staticmethod
+    def get_steam_status_info(status):
+        """
+        Returns a textual representation of the steam status number.
+
+        @param status: The status number as an integer between 0 and 6
+        @return: Returns the name of the given status.
+        """
+        return {
+            0: "Offline",
+            1: "Online",
+            2: "Busy",
+            3: "Away",
+            4: "Snooze",
+            5: "Looking to Trade",
+            6: "Looking to Play"
+        }[status]
 
     @staticmethod
     def send_message_admin_only(bot, update):
