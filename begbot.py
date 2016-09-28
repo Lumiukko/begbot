@@ -5,7 +5,7 @@ This is the Bouncing Egg Telegram Bot.
 # from uuid import uuid4
 # from telegram import InlineQueryResultArticle, InputTextMessageContent, ParseMode
 # from telegram.ext import MessageHandler, Filters, InlineQueryHandler
-from telegram.ext import Updater, CommandHandler, Job, JobQueue
+from telegram.ext import Updater, CommandHandler, Job
 import logging
 import os
 import json
@@ -13,7 +13,8 @@ import ts3.query
 import urllib.request
 import urllib.error
 from botconfig import BotConfig
-from extended_emoji import ExtendedEmoji as Emoji
+import emoji
+from extended_emoji import ExtendedEmoji as EEmoji
 from noneless_formatter import NoneLessFormatter
 import sqlite3
 
@@ -61,11 +62,27 @@ class BEGBot:
         """
         self.logger.warn("Update={}, Error={}".format(update, error))
 
+    def is_known(self, telegram_id):
+        """
+        Checks whether a user with the given telegram id is known in the database.
+
+        @param telegram_id: The users telegram id.
+        @return: True if the user is known, False otherwise.
+        """
+        con = sqlite3.connect(self.cfg.db_file)
+        c = con.cursor()
+        c.execute("select count(id) from user where telegram_id=?", (telegram_id, ))
+        (result, ) = c.fetchone()
+        c.close()
+        con.close()
+        return result
+
     def is_beg(self, telegram_id):
         """
-            Checks if the user with the given telegram id is tagged as a BEG member.
+        Checks if the user with the given telegram id is tagged as a BEG member.
 
-            @param telegram_id The users telegram id.
+        @param telegram_id The users telegram id.
+        @return: True if the user is tagged as a BEG member, False otherwise
         """
         con = sqlite3.connect(self.cfg.db_file)
         c = con.cursor()
@@ -89,6 +106,34 @@ class BEGBot:
         con.close()
         return result
 
+    def add_to_beg(self, bot, update):
+        """
+        Sets the BEG flag for the user with the given telegram ID.
+
+        @param bot: The Telegram bot instance.
+        @param update: The update that triggered the command.
+        @return: True if successful, False otherwise.
+        """
+        if not self.is_admin(update.message.from_user.id):
+            self.send_message_admin_only(bot, update)
+            return False
+
+        telegram_id = update.message.text
+
+        if telegram_id is None:
+            return False
+
+        if not self.is_known(telegram_id):
+            return False
+
+        con = sqlite3.connect(self.cfg.db_file)
+        c = con.cursor()
+        c.execute("update table user set beg=1 where telegram_id=?;", (telegram_id, ))
+        con.commit()
+        c.close()
+        con.close()
+        return True
+
     def list_users(self, bot, update):
         """
         Gets user information from the database and lists all known users.
@@ -110,7 +155,7 @@ class BEGBot:
         response = ""
         tpl = ("ID", "TID", "Username", "Name", "Added", "B", "A")
         response += "|`{:3}`|`{:9}`|`{:15}`|`{:9}`|`{:10}`|`{}`|`{}`|\n"\
-            .replace("|", Emoji.BOX_DRAWINGS_LIGHT_VERTICAL)\
+            .replace("|", EEmoji.BOX_DRAWINGS_LIGHT_VERTICAL)\
             .format(tpl[0], tpl[1], tpl[2], tpl[3], tpl[4], tpl[5], tpl[6])
 
         nlf = NoneLessFormatter()
@@ -119,7 +164,7 @@ class BEGBot:
             if tpl[2] != "":
                 uname = tpl[2]
             response += nlf.format("|`{:3d}`|`{:9d}`|`{:15.15}`|`{:9.9}`|`{:10.10}`|`{}`|`{}`|\n"
-                                   .replace("|", Emoji.BOX_DRAWINGS_LIGHT_VERTICAL),
+                                   .replace("|", EEmoji.BOX_DRAWINGS_LIGHT_VERTICAL),
                                    tpl[0], tpl[1], uname, tpl[3], tpl[4], tpl[5], tpl[6])
 
         bot.sendMessage(update.message.chat_id, text=response, parse_mode="Markdown")
@@ -169,28 +214,28 @@ class BEGBot:
             player_list = []
             for player in data["response"]["players"]:
                 if player["personastate"] != 0:  # Only show non-offline players.
-                    player_entry = "{} {} {}".format(
-                        player["personaname"],
-                        Emoji.WAVY_DASH,
-                        self.get_steam_status_info(player["personastate"])
+                    player_entry = emoji.emojize("{} :WAVY_DASH: {}".format(
+                            player["personaname"],
+                            self.get_steam_status_info(player["personastate"]))
                     )
                     if "gameid" in player:  # Player is in a game.
-                        player_entry = "{} {} / InGame".format(Emoji.LARGE_ORANGE_DIAMOND, player_entry)
+                        player_entry = emoji.emojize(":large_orange_diamond: {} / InGame".format(player_entry))
                     else:
-                        player_entry = "{} {}".format(Emoji.LARGE_BLUE_DIAMOND, player_entry)
+                        player_entry = ":LARGE_BLUE_DIAMOND: {}".format(player_entry)
                     player_list.append(player_entry)
 
             if not player_list:  # All SteamIDs are offline.
-                response = "{}{} Steam {}{}\n There's nobody online {}".format(
-                    Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN,
-                    Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN, Emoji.WORRIED_FACE)
+                response = emoji.emojize(
+                    ":heavy_minus_sign::heavy_minus_sign: Steam :heavy_minus_sign::heavy_minus_sign:\n"
+                    " There's nobody online :worried_face:"
+                )
                 bot.sendMessage(update.message.chat_id, text=response)
                 return True
             else:
-                response = "{}{} Steam {}{}\n{}" .format(
-                    Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN,
-                    Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN,
-                    "\n".join(player_list))
+                response = emoji.emojize(
+                    ":heavy_minus_sign::heavy_minus_sign: Steam :heavy_minus_sign::heavy_minus_sign:\n"
+                    "{}" .format("\n".join(player_list))
+                )
                 bot.sendMessage(update.message.chat_id, text=response)
                 return True
 
@@ -230,9 +275,10 @@ class BEGBot:
                                     client_muted, client["client_country"]))
 
             if not clients:
-                response = "{}{} TeamSpeak 3 {}{}\n There's nobody online {}".format(
-                    Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN,
-                    Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN, Emoji.WORRIED_FACE)
+                response = emoji.emojize(
+                    ":heavy_minus_sign::heavy_minus_sign: TeamSpeak 3 :heavy_minus_sign::heavy_minus_sign:\n"
+                    " There's nobody online :worried_face:"
+                )
                 bot.sendMessage(update.message.chat_id, text=response)
                 return True
 
@@ -251,34 +297,34 @@ class BEGBot:
                     (nickname, muted, country) = channels[c]["clients"][client]
 
                     if client == len(channels[c]["clients"]) - 1:
-                        prefix = Emoji.BOX_DRAWINGS_LIGHT_UP_AND_RIGHT
+                        prefix = EEmoji.BOX_DRAWINGS_LIGHT_UP_AND_RIGHT
                     else:
-                        prefix = Emoji.BOX_DRAWINGS_LIGHT_VERTICAL_AND_RIGHT
+                        prefix = EEmoji.BOX_DRAWINGS_LIGHT_VERTICAL_AND_RIGHT
                     if muted:
-                        icon = Emoji.SPEAKER_WITH_CANCELLATION_STROKE
+                        icon = ":speaker_with_cancellation_stroke:"
                     else:
-                        icon = Emoji.LARGE_BLUE_CIRCLE
+                        icon = ":large_blue_circle:"
 
-                    client_lines.append(" {} {} {} {}".format(prefix, icon, nickname, Emoji.flag(country)))
+                    client_lines.append(" {} {} {} {}".format(prefix, icon, nickname, EEmoji.flag(country)))
 
-                entries.append("{} {}\n{}".format(Emoji.SPEECH_BALLOON, channels[c]["name"],
-                                                  "\n".join(client_lines)))
+                entries.append(":speech_balloon: {}\n{}".format(channels[c]["name"], "\n".join(client_lines)))
 
-            response = "{}{} TeamSpeak 3 {}{}\n{}".format(
-                Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN,
-                Emoji.HEAVY_MINUS_SIGN, Emoji.HEAVY_MINUS_SIGN, "\n".join(entries))
+            response = emoji.emojize(
+                ":heavy_minus_sign::heavy_minus_sign: TeamSpeak 3 :heavy_minus_sign::heavy_minus_sign:"
+                "\n{}".format("\n".join(entries))
+            )
             bot.sendMessage(update.message.chat_id, text=response)
             return True
 
         except ConnectionRefusedError as err:
             self.logger.error("TS3 connection failed: {}".format(err))
-            response = "{} TS3 Error {}".format(Emoji.ANGER_SYMBOL, Emoji.ANGER_SYMBOL)
+            response = emoji.emojize(":anger_symbol: TS3 Error :anger_symbol:")
             bot.sendMessage(update.message.chat_id, text=response)
             return False
 
         except ts3.query.TS3QueryError as err:
             self.logger.error("TS3 connection failed: {}".format(err))
-            response = "{} TS3 Error {}".format(Emoji.ANGER_SYMBOL, Emoji.ANGER_SYMBOL)
+            response = emoji.emojize(":anger_symbol: TS3 Error :anger_symbol:")
             bot.sendMessage(update.message.chat_id, text=response)
             return False
 
@@ -358,7 +404,7 @@ class BEGBot:
         @param update: The update that was the users command.
         @return: None
         """
-        response = "{} Sorry, only for BEGBot administrators.".format(Emoji.ANGER_SYMBOL)
+        response = emoji.emojize(":anger_symbol: Sorry, only for BEGBot administrators.")
         bot.sendMessage(update.message.chat_id, text=response)
 
     @staticmethod
@@ -370,7 +416,7 @@ class BEGBot:
         @param update: The update that was the users command.
         @return: None
         """
-        response = "{} Sorry, only for Bouncing Egg members.".format(Emoji.ANGER_SYMBOL)
+        response = emoji.emojize(":anger_symbol: Sorry, only for Bouncing Egg members.")
         bot.sendMessage(update.message.chat_id, text=response)
 
 
