@@ -17,6 +17,7 @@ import emoji
 from extended_emoji import ExtendedEmoji as EEmoji
 from noneless_formatter import NoneLessFormatter
 import sqlite3
+import threading
 
 
 class BEGBot:
@@ -196,16 +197,29 @@ class BEGBot:
 
     def steam_info(self, bot, update):
         """
+        Creates a thread that connects to the Steam API and gets information about all SteamIDs set in the configuration.
+
+        @param bot: The Telegram bot instance.
+        @param update: The update that triggered the command.
+        @return: Returns True.
+        """
+        if not self.is_beg(update.message.from_user.id):
+            self.send_message_beg_only(bot, update)
+            return False
+
+        logic_thread = threading.Thread(target=self.steam_info_logic, args=[bot, update])
+        logic_thread.start()
+
+        return True
+
+    def steam_info_logic(self, bot, update):
+        """
         Connects to the Steam API and gets information about all SteamIDs set in the configuration.
 
         @param bot: The Telegram bot instance.
         @param update: The update that triggered the command.
         @return: Returns True if it was successful, and False if it was not.
         """
-        if not self.is_beg(update.message.from_user.id):
-            self.send_message_beg_only(bot, update)
-            return False
-
         steam_id_string = ",".join(map(str, self.cfg.steam_ids))
         site = urllib.request.urlopen(self.cfg.steam_api_url.format(self.cfg.steam_api_key, steam_id_string))
         site_content = site.read()
@@ -214,14 +228,14 @@ class BEGBot:
             player_list = []
             for player in data["response"]["players"]:
                 if player["personastate"] != 0:  # Only show non-offline players.
-                    player_entry = emoji.emojize("{} :WAVY_DASH: {}".format(
+                    player_entry = emoji.emojize("{} :wavy_dash: {}".format(
                             player["personaname"],
                             self.get_steam_status_info(player["personastate"]))
                     )
                     if "gameid" in player:  # Player is in a game.
                         player_entry = emoji.emojize(":large_orange_diamond: {} / InGame".format(player_entry))
                     else:
-                        player_entry = ":LARGE_BLUE_DIAMOND: {}".format(player_entry)
+                        player_entry = ":large_blue_diamond: {}".format(player_entry)
                     player_list.append(player_entry)
 
             if not player_list:  # All SteamIDs are offline.
