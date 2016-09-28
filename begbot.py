@@ -148,25 +148,25 @@ class BEGBot:
 
         con = sqlite3.connect(self.cfg.db_file)
         c = con.cursor()
-        c.execute("select id, telegram_id, username, firstname, added, beg, admin from user")
+        c.execute("select id, telegram_id, username, firstname, added, beg from user")
         result = c.fetchall()
         c.close()
         con.close()
 
         response = ""
-        tpl = ("ID", "TID", "Username", "Name", "Added", "B", "A")
-        response += "|`{:3}`|`{:9}`|`{:15}`|`{:9}`|`{:10}`|`{}`|`{}`|\n"\
+        tpl = ("ID", "TID", "Username", "Name", "Added", "B")
+        response += "|`{:3}`|`{:9}`|`{:15}`|`{:9}`|`{:10}`|`{}`|\n"\
             .replace("|", EEmoji.BOX_DRAWINGS_LIGHT_VERTICAL)\
-            .format(tpl[0], tpl[1], tpl[2], tpl[3], tpl[4], tpl[5], tpl[6])
+            .format(tpl[0], tpl[1], tpl[2], tpl[3], tpl[4], tpl[5])
 
         nlf = NoneLessFormatter()
         for tpl in result:
             uname = "~"
             if tpl[2] != "":
                 uname = tpl[2]
-            response += nlf.format("|`{:3d}`|`{:9d}`|`{:15.15}`|`{:9.9}`|`{:10.10}`|`{}`|`{}`|\n"
+            response += nlf.format("|`{:3d}`|`{:9d}`|`{:15.15}`|`{:9.9}`|`{:10.10}`|`{}`|\n"
                                    .replace("|", EEmoji.BOX_DRAWINGS_LIGHT_VERTICAL),
-                                   tpl[0], tpl[1], uname, tpl[3], tpl[4], tpl[5], tpl[6])
+                                   tpl[0], tpl[1], uname, tpl[3], tpl[4], tpl[5])
 
         bot.sendMessage(update.message.chat_id, text=response, parse_mode="Markdown")
 
