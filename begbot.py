@@ -5,7 +5,8 @@ This is the Bouncing Egg Telegram Bot.
 # from uuid import uuid4
 # from telegram import InlineQueryResultArticle, InputTextMessageContent, ParseMode
 # from telegram.ext import MessageHandler, Filters, InlineQueryHandler
-from telegram.ext import Updater, CommandHandler, Job
+from telegram.ext import Updater, CommandHandler, Job, MessageHandler, Filters
+from telegram.chataction import ChatAction
 import logging
 import os
 import json
@@ -18,11 +19,12 @@ from extended_emoji import ExtendedEmoji as EEmoji
 from noneless_formatter import NoneLessFormatter
 import sqlite3
 import threading
+# import overpass
 
 
 class BEGBot:
 
-    version = "0.1"
+    version = "0.11"
 
     def __init__(self):
         self.cfg = BotConfig(json.load(open("config.json", "r")))
@@ -35,11 +37,13 @@ class BEGBot:
         self.dp = self.updater.dispatcher
         self.dp.add_error_handler(self.error)
         # self.dp.add_handler(InlineQueryHandler(self.inline_query))
-        # self.dp.add_handler(MessageHandler([Filters.text], self.message))
+        self.dp.add_handler(MessageHandler(Filters.text, self.process_message))
+        self.dp.add_handler(MessageHandler(Filters.location, self.process_location))
         self.dp.add_handler(CommandHandler("ts3", self.ts3_info))
         self.dp.add_handler(CommandHandler("session", self.session_info))
         self.dp.add_handler(CommandHandler("listusers", self.list_users))
         self.dp.add_handler(CommandHandler("steam", self.steam_info))
+        self.dp.add_handler(CommandHandler("deluser", self.delete_user))
 
         keep_alive_job = Job(self.send_keep_alive, interval=3, repeat=True)
         self.dp.job_queue.put(keep_alive_job)
@@ -50,7 +54,7 @@ class BEGBot:
 
         @return: None
         """
-        self.updater.start_polling()
+        self.updater.start_polling(bootstrap_retries=-1)
         self.updater.idle()
 
     def error(self, update, error):
@@ -70,13 +74,7 @@ class BEGBot:
         @param telegram_id: The users telegram id.
         @return: True if the user is known, False otherwise.
         """
-        con = sqlite3.connect(self.cfg.db_file)
-        c = con.cursor()
-        c.execute("select count(id) from user where telegram_id=?", (telegram_id, ))
-        (result, ) = c.fetchone()
-        c.close()
-        con.close()
-        return result
+        return telegram_id in self.cfg.known_users
 
     def is_beg(self, telegram_id):
         """
@@ -107,9 +105,45 @@ class BEGBot:
         con.close()
         return result
 
-    def add_to_beg(self, bot, update):
+    def process_message(self, bot, update):
         """
-        Sets the BEG flag for the user with the given telegram ID.
+        Processes a message received by the bot.
+
+        @param bot: The Telegram bot instance.
+        @param update: The update that triggered the command.
+        @return: True if successful, False otherwise.
+        """
+
+        # Checks if that user is known. If the user is not known, they will be added to the DB.
+        if not self.is_known(update.message.from_user.id):
+            self.add_user(update.message.from_user)
+
+        print(update)
+
+    def process_location(self, bot, update):
+        geo_location = (update.message.location.longitude, update.message.location.latitude)
+
+        print(geo_location)
+
+    def add_user(self, user):
+        """
+        Adds a user to the local database and makes them known.
+
+        @param user: The user represented by a dictionary with fields username, first_name, last_name, and id.
+        """
+        con = sqlite3.connect(self.cfg.db_file)
+        c = con.cursor()
+        c.execute("insert into user (username, firstname, lastname, telegram_id, added, beg, admin)"
+                  " values (?, ?, ?, ?, datetime('now'), 0, 0)",
+                  (user.username, user.first_name, user.last_name, user.id))
+        con.commit()
+        c.close()
+        con.close()
+        self.cfg.known_users.add(user.id)
+
+    def delete_user(self, bot, update):
+        """
+        Deletes a user from the local database and makes them unknown.
 
         @param bot: The Telegram bot instance.
         @param update: The update that triggered the command.
@@ -119,21 +153,77 @@ class BEGBot:
             self.send_message_admin_only(bot, update)
             return False
 
-        telegram_id = update.message.text
+        command_usage_string = emoji.emojize(":anger_symbol: Command usage: /deluser <telegram id>")
 
-        if telegram_id is None:
+        args = update.message.text.split()
+        if len(args) >= 2:
+            try:
+                tid = int(args[1])
+                if not self.is_known(tid):
+                    response = emoji.emojize(":anger_symbol: No user known with telegram id '{}'.".format(tid))
+                    bot.sendMessage(update.message.chat_id, text=response)
+                    return False
+                if self.is_admin(tid):
+                    response = emoji.emojize(":anger_symbol: Can't delete the administrator.")
+                    bot.sendMessage(update.message.chat_id, text=response)
+                    return False
+                con = sqlite3.connect(self.cfg.db_file)
+                c = con.cursor()
+                c.execute("delete from user where telegram_id = ?", (tid, ))
+                con.commit()
+                c.close()
+                con.close()
+                self.cfg.known_users.remove(tid)
+                response = emoji.emojize(":heavy_check_mark: Deleted user with telegram id '{}'.".format(tid))
+                bot.sendMessage(update.message.chat_id, text=response)
+                return True
+            except ValueError:
+                bot.sendMessage(update.message.chat_id, text=command_usage_string)
+                return False
+        else:
+            bot.sendMessage(update.message.chat_id, text=command_usage_string)
+        return False
+
+    def add_to_beg(self, bot, update):
+        """
+        Sets the BEG flag for the user with the given telegram ID.
+
+        @param bot: The Telegram bot instance.
+        @param update: The update that triggered the command.
+        @return: True if successful, False otherwise.
+        """
+
+        if not self.is_admin(update.message.from_user.id):
+            self.send_message_admin_only(bot, update)
             return False
 
-        if not self.is_known(telegram_id):
-            return False
+        command_usage_string = emoji.emojize(":anger_symbol: Command usage: /addbeg <telegram id>")
 
-        con = sqlite3.connect(self.cfg.db_file)
-        c = con.cursor()
-        c.execute("update table user set beg=1 where telegram_id=?;", (telegram_id, ))
-        con.commit()
-        c.close()
-        con.close()
-        return True
+        args = update.message.text.split()
+        if len(args) >= 2:
+            try:
+                tid = int(args[1])
+                if not self.is_known(tid):
+                    response = emoji.emojize(":anger_symbol: No user known with telegram id '{}'.".format(tid))
+                    bot.sendMessage(update.message.chat_id, text=response)
+                    return False
+
+                con = sqlite3.connect(self.cfg.db_file)
+                c = con.cursor()
+                c.execute("update table user set beg=1 where telegram_id=?;", (tid, ))
+                con.commit()
+                c.close()
+                con.close()
+
+                response = emoji.emojize(":heavy_check_mark: Added user with telegram id '{}' to BEG.".format(tid))
+                bot.sendMessage(update.message.chat_id, text=response)
+                return True
+            except ValueError:
+                bot.sendMessage(update.message.chat_id, text=command_usage_string)
+                return False
+        else:
+            bot.sendMessage(update.message.chat_id, text=command_usage_string)
+        return False
 
     def list_users(self, bot, update):
         """
@@ -197,7 +287,8 @@ class BEGBot:
 
     def steam_info(self, bot, update):
         """
-        Creates a thread that connects to the Steam API and gets information about all SteamIDs set in the configuration.
+        Creates a thread that connects to the Steam API and gets information about
+        all SteamIDs set in the configuration.
 
         @param bot: The Telegram bot instance.
         @param update: The update that triggered the command.
@@ -206,6 +297,8 @@ class BEGBot:
         if not self.is_beg(update.message.from_user.id):
             self.send_message_beg_only(bot, update)
             return False
+
+        bot.sendChatAction(update.message.chat_id, ChatAction.TYPING)
 
         logic_thread = threading.Thread(target=self.steam_info_logic, args=[bot, update])
         logic_thread.start()
@@ -370,7 +463,7 @@ class BEGBot:
             self.cfg.session_id = c.lastrowid
             con.commit()
             c.execute("select telegram_id from user")
-            self.cfg.known_users = {u for u in c.fetchall()}
+            self.cfg.known_users = {u[0] for u in c.fetchall()}
             c.close()
             con.close()
             return True
@@ -432,13 +525,6 @@ class BEGBot:
         """
         response = emoji.emojize(":anger_symbol: Sorry, only for Bouncing Egg members.")
         bot.sendMessage(update.message.chat_id, text=response)
-
-
-
-
-
-
-
 
 
 """
