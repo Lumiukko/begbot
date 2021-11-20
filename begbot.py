@@ -2,9 +2,6 @@
 This is the Bouncing Egg Telegram Bot.
 """
 
-# from uuid import uuid4
-# from telegram import InlineQueryResultArticle, InputTextMessageContent, ParseMode
-# from telegram.ext import MessageHandler, Filters, InlineQueryHandler
 from telegram.ext import Updater, CommandHandler, Job, MessageHandler, Filters
 from telegram.chataction import ChatAction
 import logging
@@ -19,12 +16,12 @@ from extended_emoji import ExtendedEmoji as EEmoji
 from noneless_formatter import NoneLessFormatter
 import sqlite3
 import threading
-# import overpass
+
 
 
 class BEGBot:
 
-    version = "0.11"
+    version = "0.13"
 
     def __init__(self):
         self.cfg = BotConfig(json.load(open("config.json", "r")))
@@ -37,16 +34,16 @@ class BEGBot:
         self.dp = self.updater.dispatcher
         self.dp.add_error_handler(self.error)
         # self.dp.add_handler(InlineQueryHandler(self.inline_query))
-        self.dp.add_handler(MessageHandler(Filters.text, self.process_message))
         self.dp.add_handler(MessageHandler(Filters.location, self.process_location))
         self.dp.add_handler(CommandHandler("ts3", self.ts3_info))
         self.dp.add_handler(CommandHandler("session", self.session_info))
         self.dp.add_handler(CommandHandler("listusers", self.list_users))
         self.dp.add_handler(CommandHandler("steam", self.steam_info))
         self.dp.add_handler(CommandHandler("deluser", self.delete_user))
+        self.dp.add_handler(MessageHandler(Filters.text & ~Filters.command, self.process_message))
+        
+        t = threading.Timer(10, self.send_keep_alive)
 
-        keep_alive_job = Job(self.send_keep_alive, interval=3, repeat=True)
-        self.dp.job_queue.put(keep_alive_job)
 
     def start(self):
         """
@@ -57,7 +54,7 @@ class BEGBot:
         self.updater.start_polling(bootstrap_retries=-1)
         self.updater.idle()
 
-    def error(self, update, error):
+    def error(self, update, context):
         """
         Sends a warning to the logger that reports on an error occurred.
 
@@ -65,7 +62,7 @@ class BEGBot:
         @param error: The error that occurred
         @return: None
         """
-        self.logger.warn("Update={}, Error={}".format(update, error))
+        self.logger.warn("Update={}, Error={}".format(update, context.error))
 
     def is_known(self, telegram_id):
         """
@@ -105,12 +102,12 @@ class BEGBot:
         con.close()
         return result
 
-    def process_message(self, bot, update):
+    def process_message(self, update, context):
         """
         Processes a message received by the bot.
 
-        @param bot: The Telegram bot instance.
         @param update: The update that triggered the command.
+        @param context: The bot context
         @return: True if successful, False otherwise.
         """
 
@@ -141,31 +138,32 @@ class BEGBot:
         con.close()
         self.cfg.known_users.add(user.id)
 
-    def delete_user(self, bot, update):
+    def delete_user(self, update, context):
         """
         Deletes a user from the local database and makes them unknown.
 
-        @param bot: The Telegram bot instance.
+        
         @param update: The update that triggered the command.
+        @param context: The bot context
         @return: True if successful, False otherwise.
         """
         if not self.is_admin(update.message.from_user.id):
-            self.send_message_admin_only(bot, update)
+            self.send_message_admin_only(update, context)
             return False
 
-        command_usage_string = emoji.emojize(":anger_symbol: Command usage: /deluser <telegram id>")
+        command_usage_string = emoji.emojize(":anger_symbol: Command usage: /deluser <telegram id>", use_aliases=True)
 
         args = update.message.text.split()
         if len(args) >= 2:
             try:
                 tid = int(args[1])
                 if not self.is_known(tid):
-                    response = emoji.emojize(":anger_symbol: No user known with telegram id '{}'.".format(tid))
-                    bot.sendMessage(update.message.chat_id, text=response)
+                    response = emoji.emojize(":anger_symbol: No user known with telegram id '{}'.".format(tid), use_aliases=True)
+                    context.bot.send_message(update.message.chat_id, text=response)
                     return False
                 if self.is_admin(tid):
-                    response = emoji.emojize(":anger_symbol: Can't delete the administrator.")
-                    bot.sendMessage(update.message.chat_id, text=response)
+                    response = emoji.emojize(":anger_symbol: Can't delete the administrator.", use_aliases=True)
+                    context.bot.send_message(update.message.chat_id, text=response)
                     return False
                 con = sqlite3.connect(self.cfg.db_file)
                 c = con.cursor()
@@ -174,38 +172,39 @@ class BEGBot:
                 c.close()
                 con.close()
                 self.cfg.known_users.remove(tid)
-                response = emoji.emojize(":heavy_check_mark: Deleted user with telegram id '{}'.".format(tid))
-                bot.sendMessage(update.message.chat_id, text=response)
+                response = emoji.emojize(":heavy_check_mark: Deleted user with telegram id '{}'.".format(tid), use_aliases=True)
+                context.bot.send_message(update.message.chat_id, text=response)
                 return True
             except ValueError:
-                bot.sendMessage(update.message.chat_id, text=command_usage_string)
+                context.bot.send_message(update.message.chat_id, text=command_usage_string)
                 return False
         else:
-            bot.sendMessage(update.message.chat_id, text=command_usage_string)
+            context.bot.send_message(update.message.chat_id, text=command_usage_string)
         return False
 
-    def add_to_beg(self, bot, update):
+    def add_to_beg(self, update, context):
         """
         Sets the BEG flag for the user with the given telegram ID.
 
-        @param bot: The Telegram bot instance.
+        
         @param update: The update that triggered the command.
+        @param context: The bot context
         @return: True if successful, False otherwise.
         """
 
         if not self.is_admin(update.message.from_user.id):
-            self.send_message_admin_only(bot, update)
+            self.send_message_admin_only(update, context)
             return False
 
-        command_usage_string = emoji.emojize(":anger_symbol: Command usage: /addbeg <telegram id>")
+        command_usage_string = emoji.emojize(":anger_symbol: Command usage: /addbeg <telegram id>", use_aliases=True)
 
         args = update.message.text.split()
         if len(args) >= 2:
             try:
                 tid = int(args[1])
                 if not self.is_known(tid):
-                    response = emoji.emojize(":anger_symbol: No user known with telegram id '{}'.".format(tid))
-                    bot.sendMessage(update.message.chat_id, text=response)
+                    response = emoji.emojize(":anger_symbol: No user known with telegram id '{}'.".format(tid), use_aliases=True)
+                    context.bot.send_message(update.message.chat_id, text=response)
                     return False
 
                 con = sqlite3.connect(self.cfg.db_file)
@@ -215,25 +214,26 @@ class BEGBot:
                 c.close()
                 con.close()
 
-                response = emoji.emojize(":heavy_check_mark: Added user with telegram id '{}' to BEG.".format(tid))
-                bot.sendMessage(update.message.chat_id, text=response)
+                response = emoji.emojize(":heavy_check_mark: Added user with telegram id '{}' to BEG.".format(tid), use_aliases=True)
+                context.bot.send_message(update.message.chat_id, text=response)
                 return True
             except ValueError:
-                bot.sendMessage(update.message.chat_id, text=command_usage_string)
+                context.bot.send_message(update.message.chat_id, text=command_usage_string)
                 return False
         else:
-            bot.sendMessage(update.message.chat_id, text=command_usage_string)
+            context.bot.send_message(update.message.chat_id, text=command_usage_string)
         return False
 
-    def list_users(self, bot, update):
+    def list_users(self, update, context):
         """
         Gets user information from the database and lists all known users.
 
-        @param bot: The Telegram bot instance.
+        
         @param update: The update that triggered the command.
+        @param context: The bot context
         """
         if not self.is_admin(update.message.from_user.id):
-            self.send_message_admin_only(bot, update)
+            self.send_message_admin_only(update, context)
             return False
 
         con = sqlite3.connect(self.cfg.db_file)
@@ -258,18 +258,19 @@ class BEGBot:
                                    .replace("|", EEmoji.BOX_DRAWINGS_LIGHT_VERTICAL),
                                    tpl[0], tpl[1], uname, tpl[3], tpl[4], tpl[5])
 
-        bot.sendMessage(update.message.chat_id, text=response, parse_mode="Markdown")
+        context.bot.send_message(update.message.chat_id, text=response, parse_mode="Markdown")
 
-    def session_info(self, bot, update):
+    def session_info(self, update, context):
         """
         Gets information (start time, end time, and duration) about the current session.
 
-        @param bot: The Telegram bot instance.
+        
         @param update: The update that triggered the command.
+        @param context: The bot context
         @return: True if successful, False otherwise.
         """
         if not self.is_admin(update.message.from_user.id):
-            self.send_message_admin_only(bot, update)
+            self.send_message_admin_only(update, context)
             return False
 
         con = sqlite3.connect(self.cfg.db_file)
@@ -282,35 +283,37 @@ class BEGBot:
         con.close()
         response = "BEGBot [{}], Session: id={}, start={}, lastka={}, duration={}".format(
             self.version, result[0], result[1], result[2], result[3])
-        bot.sendMessage(update.message.chat_id, text=response)
+        context.bot.send_message(update.message.chat_id, text=response)
         return True
 
-    def steam_info(self, bot, update):
+    def steam_info(self, update, context):
         """
         Creates a thread that connects to the Steam API and gets information about
         all SteamIDs set in the configuration.
 
-        @param bot: The Telegram bot instance.
+        
         @param update: The update that triggered the command.
+        @param context: The bot context
         @return: Returns True.
         """
         if not self.is_beg(update.message.from_user.id):
-            self.send_message_beg_only(bot, update)
+            self.send_message_beg_only(update, context)
             return False
 
-        bot.sendChatAction(update.message.chat_id, ChatAction.TYPING)
+        context.bot.send_chat_action(update.message.chat_id, ChatAction.TYPING)
 
-        logic_thread = threading.Thread(target=self.steam_info_logic, args=[bot, update])
+        logic_thread = threading.Thread(target=self.steam_info_logic, args=[update, context])
         logic_thread.start()
 
         return True
 
-    def steam_info_logic(self, bot, update):
+    def steam_info_logic(self, update, context):
         """
         Connects to the Steam API and gets information about all SteamIDs set in the configuration.
 
-        @param bot: The Telegram bot instance.
+        
         @param update: The update that triggered the command.
+        @param context: The bot context
         @return: Returns True if it was successful, and False if it was not.
         """
         steam_id_string = ",".join(map(str, self.cfg.steam_ids))
@@ -323,10 +326,11 @@ class BEGBot:
                 if player["personastate"] != 0:  # Only show non-offline players.
                     player_entry = emoji.emojize("{} :wavy_dash: {}".format(
                             player["personaname"],
-                            self.get_steam_status_info(player["personastate"]))
+                            self.get_steam_status_info(player["personastate"])),
+                            use_aliases=True
                     )
                     if "gameid" in player:  # Player is in a game.
-                        player_entry = emoji.emojize(":large_orange_diamond: {} / InGame".format(player_entry))
+                        player_entry = emoji.emojize(":large_orange_diamond: {} / InGame".format(player_entry), use_aliases=True)
                     else:
                         player_entry = ":large_blue_diamond: {}".format(player_entry)
                     player_list.append(player_entry)
@@ -334,16 +338,19 @@ class BEGBot:
             if not player_list:  # All SteamIDs are offline.
                 response = emoji.emojize(
                     ":heavy_minus_sign::heavy_minus_sign: Steam :heavy_minus_sign::heavy_minus_sign:\n"
-                    " There's nobody online :worried_face:"
+                    " There's nobody online :worried_face:",
+                    use_aliases=True
+
                 )
-                bot.sendMessage(update.message.chat_id, text=response)
+                context.bot.send_message(update.message.chat_id, text=response)
                 return True
             else:
                 response = emoji.emojize(
                     ":heavy_minus_sign::heavy_minus_sign: Steam :heavy_minus_sign::heavy_minus_sign:\n"
-                    "{}" .format("\n".join(player_list))
+                    "{}" .format("\n".join(player_list)),
+                    use_aliases=True
                 )
-                bot.sendMessage(update.message.chat_id, text=response)
+                context.bot.send_message(update.message.chat_id, text=response)
                 return True
 
         except ValueError as err:
@@ -351,17 +358,18 @@ class BEGBot:
 
         return False
 
-    def ts3_info(self, bot, update):
+    def ts3_info(self, update, context):
         """
         Connects to a Teamspeak 3 server, gets client information, and responds with a channel overview.
 
-        @param bot: The Telegram bot instance.
+        
         @param update: The update that triggered the command.
+        @param context: The bot context
         @return: Returns True if it was successful, and False if it was not.
         """
 
         if not self.is_beg(update.message.from_user.id):
-            self.send_message_beg_only(bot, update)
+            self.send_message_beg_only(update, context)
             return False
 
         try:
@@ -384,9 +392,10 @@ class BEGBot:
             if not clients:
                 response = emoji.emojize(
                     ":heavy_minus_sign::heavy_minus_sign: TeamSpeak 3 :heavy_minus_sign::heavy_minus_sign:\n"
-                    " There's nobody online :worried_face:"
+                    " There's nobody online :worried_face:",
+                    use_aliases=True
                 )
-                bot.sendMessage(update.message.chat_id, text=response)
+                context.bot.send_message(update.message.chat_id, text=response)
                 return True
 
             channel_list = ts3_connection.channellist()
@@ -408,7 +417,7 @@ class BEGBot:
                     else:
                         prefix = EEmoji.BOX_DRAWINGS_LIGHT_VERTICAL_AND_RIGHT
                     if muted:
-                        icon = ":speaker_with_cancellation_stroke:"
+                        icon = ":mute:"
                     else:
                         icon = ":large_blue_circle:"
 
@@ -418,21 +427,28 @@ class BEGBot:
 
             response = emoji.emojize(
                 ":heavy_minus_sign::heavy_minus_sign: TeamSpeak 3 :heavy_minus_sign::heavy_minus_sign:"
-                "\n{}".format("\n".join(entries))
+                "\n{}".format("\n".join(entries)),
+                use_aliases=True
             )
-            bot.sendMessage(update.message.chat_id, text=response)
+            context.bot.send_message(update.message.chat_id, text=response)
             return True
 
         except ConnectionRefusedError as err:
             self.logger.error("TS3 connection failed: {}".format(err))
-            response = emoji.emojize(":anger_symbol: TS3 Error :anger_symbol:")
-            bot.sendMessage(update.message.chat_id, text=response)
+            response = emoji.emojize(":anger_symbol: TS3 Error :anger_symbol:", use_aliases=True)
+            context.bot.send_message(update.message.chat_id, text=response)
             return False
 
         except ts3.query.TS3QueryError as err:
             self.logger.error("TS3 connection failed: {}".format(err))
-            response = emoji.emojize(":anger_symbol: TS3 Error :anger_symbol:")
-            bot.sendMessage(update.message.chat_id, text=response)
+            response = emoji.emojize(":anger_symbol: TS3 Error :anger_symbol:", use_aliases=True)
+            context.bot.send_message(update.message.chat_id, text=response)
+            return False
+            
+        except OSError as err:
+            self.logger.error("TS3 connection failed: {}".format(err))
+            response = emoji.emojize(":anger_symbol: TS3 Error :anger_symbol:", use_aliases=True)
+            context.bot.send_message(update.message.chat_id, text=response)
             return False
 
     def init_db(self):
@@ -471,12 +487,12 @@ class BEGBot:
             self.logger.error("Error: Missing field in config.json: {}".format(err))
         return False
 
-    def send_keep_alive(self, bot, job):
+    def send_keep_alive(self):
         """
             Saves the current time to the database to keep track of the last known working time in
             case the bot crashed.
 
-            @param bot: The Telegram bot instance.
+            
             @param job: The Job instance for the bots job queue.
         """
         con = sqlite3.connect(self.cfg.db_file)
@@ -503,49 +519,25 @@ class BEGBot:
         }[status]
 
     @staticmethod
-    def send_message_admin_only(bot, update):
+    def send_message_admin_only(update, context):
         """
         Sends a message to the user, stating that the command is only administrators.
 
-        @param bot: The Telegram bot instance.
+        
         @param update: The update that was the users command.
         @return: None
         """
-        response = emoji.emojize(":anger_symbol: Sorry, only for BEGBot administrators.")
-        bot.sendMessage(update.message.chat_id, text=response)
+        response = emoji.emojize(":anger_symbol: Sorry, only for BEGBot administrators.", use_aliases=True)
+        context.bot.send_message(update.message.chat_id, text=response)
 
     @staticmethod
-    def send_message_beg_only(bot, update):
+    def send_message_beg_only(update, context):
         """
         Sends a message to the user, stating that the command is only for BEG members.
 
-        @param bot: The Telegram bot instance.
+        
         @param update: The update that was the users command.
         @return: None
         """
-        response = emoji.emojize(":anger_symbol: Sorry, only for Bouncing Egg members.")
-        bot.sendMessage(update.message.chat_id, text=response)
-
-
-"""
-    # These are example inline and message handlers, not used yet.
-
-    def inline_query(self, bot, update):
-        print("Inline Query: {}".format(update))
-
-        query = update.inline_query.query
-        results = list()
-
-        results.append(InlineQueryResultArticle(id=uuid4(),
-                                                title="Test1",
-                                                input_message_content=InputTextMessageContent("Test1")))
-
-        results.append(InlineQueryResultArticle(id=uuid4(),
-                                                title="Test2",
-                                                input_message_content=InputTextMessageContent("Test222222")))
-
-        bot.answerInlineQuery(update.inline_query.id, results=results)
-
-    def message(self, bot, update):
-        print("Update: {}".format(update))
-"""
+        response = emoji.emojize(":anger_symbol: Sorry, only for Bouncing Egg members.", use_aliases=True)
+        context.bot.send_message(update.message.chat_id, text=response)
