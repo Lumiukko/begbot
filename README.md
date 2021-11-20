@@ -12,7 +12,7 @@ This bot was implemented using Python >= 3.4. Besides several standard libraries
 
 * `python-telegram-bot` - https://github.com/leandrotoledo/python-telegram-bot/
 * `ts3` - https://github.com/benediktschmitt/py-ts3
-* `pymysql` - https://github.com/PyMySQL/PyMySQL
+* `emoji` - https://github.com/carpedm20/emoji/
 
 ## Features
 
